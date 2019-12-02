@@ -28,7 +28,7 @@ python utils/create_pretraining_data.py \
 First, prepare the horovod distributed training environment, and then run **scripts/run_pretraining.sh**:
 
 
-## 3 Finetune BERT
+## 3 Finetune NEZHA
 
 For the time being, we support three kinds of fine-tuning tasks: text classification, sequence labelling, and SQuAD-like MRC.  
 Our fine-tuning codes are mainly based on [Google BERT](https://github.com/google-research/bert),[BERT NER](https://github.com/ProHiryu/bert-chinese-ner) ,[CMRC2018-DRCD-BERT](https://github.com/johndpope/CMRC2018-DRCD-BERT)

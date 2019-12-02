@@ -1,0 +1,10 @@
+# progress bars in model download and training scripts
+tqdm
+# Accessing files from S3 directly.
+boto3
+# Used for downloading models over HTTP
+requests
+
+torch>=1.0.1
+scipy>=0.14.0
+seaborn

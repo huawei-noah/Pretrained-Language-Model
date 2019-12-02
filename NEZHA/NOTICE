@@ -1,0 +1,5 @@
+BERT TensorFlow
+
+This repository includes software from https://github.com/google-research/bert
+This repository includes software from https://github.com/NVIDIA/DeepLearningExamples/tree/master/TensorFlow/LanguageModeling/BERT
+licensed under the Apache License, Version 2.0 (the "License")

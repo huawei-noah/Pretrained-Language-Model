@@ -168,7 +168,7 @@ class PregeneratedDataset(Dataset):
                 torch.tensor(self.input_masks[item].astype(np.int64)),
                 torch.tensor(self.segment_ids[item].astype(np.int64)),
                 torch.tensor(self.lm_label_ids[item].astype(np.int64)),
-                torch.tensor(self.is_nexts[item].astype(np.int64)))
+                torch.tensor(int(self.is_nexts[item])))
 
 
 def main():
@@ -335,7 +335,7 @@ def main():
     if args.continue_train:
         student_model = TinyBertForPreTraining.from_pretrained(args.student_model)
     else:
-        student_model = TinyBertForPreTraining.from_scratch(args.teacher_model)
+        student_model = TinyBertForPreTraining.from_scratch(args.student_model)
     teacher_model = BertModel.from_pretrained(args.teacher_model)
 
     # student_model = TinyBertForPreTraining.from_scratch(args.student_model, fit_size=teacher_model.config.hidden_size)

@@ -354,7 +354,7 @@ def main():
     parser.add_argument("--max_predictions_per_seq", type=int, default=20,
                         help="Maximum number of tokens to mask in each sequence")
     parser.add_argument('--data_url', type=str, default="")
-    parser.add_argument('--oneseq', action='store_true')
+    parser.add_argument('--one_seq', action='store_true')
 
     args = parser.parse_args()
 
@@ -395,7 +395,7 @@ def main():
             writer_workers.starmap(create_training_file, arguments)
         else:
             for epoch in trange(args.epochs_to_generate, desc="Epoch"):
-                bi_text = True if not args.oneseq else False
+                bi_text = True if not args.one_seq else False
                 epoch_file, metric_file = create_training_file(docs, vocab_list, args, epoch, bi_text=bi_text)
 
                 if oncloud:

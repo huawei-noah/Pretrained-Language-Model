@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 #####################
 #Created on Fri Jul 12 11:05:22 2019
-#start codes for running ds tasks prediction
+#start codes for running clf(lxqmc/chnsenti/xnli) predict tasks
 #####################
 
-
-python run_classifier.py \
+python ../run_classifier.py \
   --task_name=$1 \
   --do_predict=true \
   --data_dir=$2 \

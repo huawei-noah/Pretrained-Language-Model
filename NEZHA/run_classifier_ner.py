@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""BERT finetuning runner."""
+"""BERT fine-tuning runner for NER."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -197,7 +197,7 @@ class DataProcessor(object):
         """Gets the list of labels for this data set."""
         raise NotImplementedError()
 
-    # 句子配对数据读取
+    # for sentences pair task
     @classmethod
     def _read_tsv(cls, input_file, quotechar=None):
         """Reads a tab separated value file."""
@@ -208,7 +208,7 @@ class DataProcessor(object):
                 lines.append(line)
             return lines
 
-    # 多分类中文数据读取
+    # for text classification task
     @classmethod
     def _read_csv(cls, input_file, quotechar=None):
         """Reads a tab separated value file."""
@@ -218,7 +218,7 @@ class DataProcessor(object):
             lines.append(line.decode("gbk").split("\t"))
         return lines
 
-    # 序列标注任务数据读取
+    # for text classification task
     @classmethod
     def _read_data(cls, input_file):
         """Reads a BIO data."""
@@ -245,141 +245,8 @@ class DataProcessor(object):
             return lines
 
 
-class sentence_pair(DataProcessor):
-    """
-    句子配对
-    数据格式为： index text1 text2 label
-       # index为不必要的列，在加载数据过程中要进行处理
-    中间分隔符为\t
-    """
-
-    def get_train_examples(self, data_dir):
-        file_list = []
-        for file in os.listdir(data_dir):
-            if 'train' in os.path.splitext(file)[0]:
-                file_list.append(file)
-        file_path = [os.path.join(data_dir, file) for file in file_list]
-        i = 0
-        example = []
-        for file in file_path:
-            with open(file, 'r') as f:
-                reader = f.readlines()
-            for line in reader:
-                guid = 'train-%d' % i
-                i += 1
-                split_line = line.strip().split('\t')
-                # 数据清洗
-                if len(split_line) != 4:
-                    print(split_line)
-                    continue
-                text_a = tokenization.convert_to_unicode(split_line[1])
-                text_b = tokenization.convert_to_unicode(split_line[2])
-                label = str(split_line[3])
-                example.append(InputExample(guid, text_a, text_b, label))
-        return example
-
-    def get_dev_examples(self, data_dir):
-
-        file_list = []
-        for file in os.listdir(data_dir):
-            if 'dev' in os.path.splitext(file)[0]:
-                file_list.append(file)
-        file_path = [os.path.join(data_dir, file) for file in file_list]
-        i = 0
-        example = []
-        for file in file_path:
-            with open(file, 'r') as f:
-                reader = f.readlines()
-            for line in reader:
-                guid = 'dev-%d' % i
-                i += 1
-                split_line = line.strip().split('\t')
-
-                #### data cleaning
-                if len(split_line) != 4:
-                    print(split_line)
-                    continue
-                text_a = tokenization.convert_to_unicode(split_line[1])
-                text_b = tokenization.convert_to_unicode(split_line[2])
-                label = str(split_line[3])
-                example.append(InputExample(guid, text_a, text_b, label))
-        return example
-
-    def get_test_examples(self, data_dir):
-
-        file_list = []
-        for file in os.listdir(data_dir):
-            if 'test' in os.path.splitext(file)[0]:
-                file_list.append(file)
-        file_path = [os.path.join(data_dir, file) for file in file_list]
-        i = 0
-        example = []
-        for file in file_path:
-            with open(file, 'r') as f:
-                reader = f.readlines()
-            for line in reader:
-                guid = 'test-%d' % i
-                i += 1
-                split_line = line.strip().split('\t')
-                text_a = tokenization.convert_to_unicode(split_line[1])
-                text_b = tokenization.convert_to_unicode(split_line[2])
-                example.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label="1"))
-        return example
-
-    def get_labels(self):
-        return ["0", "1"]
-
-
-class classify_text(DataProcessor):
-    """
-    文本分类
-    文件格式 csv
-    数据格式为 label texts
-    """
-
-    def __init__(self):
-        self.labels = set()
-        self.label_list = []
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_csv(os.path.join(data_dir, "train.tsv")), "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_csv(os.path.join(data_dir, "dev.tsv")), "dev")
-
-    def get_labels(self):
-        """See base class."""
-        # return self.labels
-        # return ['game','fashion','houseliving']
-        return self.label_list
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(line[1])
-            label = tokenization.convert_to_unicode(line[0])
-            if set_type == "train":
-                if label not in self.label_list:
-                    self.label_list.append(label)
-            print(label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-
-        return examples
-
-
-class Ner_processor(DataProcessor):
-    '''
-    命名实体识别
-    文件格式：txt
-    数据格式：字 标注
-    '''
+class NerProcessor(DataProcessor):
+    """Processor for the NER BIO data set."""
 
     def get_train_examples(self, data_dir):
         return self._create_example(
@@ -410,8 +277,8 @@ class Ner_processor(DataProcessor):
 
 def write_tokens(tokens, mode):
     """
-    将序列解析结果写入到文件中
-    只在mode=test的时候启用
+    write NER parse results to file
+    when mode == test
     :param tokens:
     :param mode:
     :return:
@@ -427,7 +294,7 @@ def write_tokens(tokens, mode):
 
 def convert_single_example(ex_index, example, label_list, max_seq_length,
                            tokenizer,
-                           # 序列标注任务write_tokens才有用
+                           # for ner write_tokens
                            mode=None):
     """Converts a single `InputExample` into a single `InputFeatures`."""
 
@@ -440,13 +307,13 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
             is_real_example=False)
 
     label_map = {}
-    ### 序列标注问题数据解析方式
+    ### NER data preprocessing
 
     if FLAGS.task_name.lower() == 'ner':
         for (i, label) in enumerate(label_list, 1):
             label_map[label] = i
 
-        # 保存label->index 的map
+        # save label->index map
         if not os.path.exists(os.path.join(FLAGS.output_dir, 'label2id.pkl')):
             with codecs.open(os.path.join(FLAGS.output_dir, 'label2id.pkl'), 'wb') as w:
                 pickle.dump(label_map, w)
@@ -456,36 +323,37 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
         tokens = []
         labels = []
         for i, word in enumerate(textlist):
-            # 分词，如果是中文，就是分字
+            # char seg for Chinese
             token = tokenizer.tokenize(word)
             tokens.extend(token)
             label_1 = labellist[i]
             for m in range(len(token)):
                 if m == 0:
                     labels.append(label_1)
-                else:  # 一般不会出现else
+                else:
                     labels.append("X")
-        # 序列截断
+
         if len(tokens) >= max_seq_length - 1:
-            tokens = tokens[0:(max_seq_length - 2)]  # -2 的原因是因为序列需要加一个句首和句尾标志
+            # -2 is for [CLS] and [SEP]
+            tokens = tokens[0:(max_seq_length - 2)]
             labels = labels[0:(max_seq_length - 2)]
 
         ntokens = []
         segment_ids = []
         label_ids = []
-        ntokens.append("[CLS]")  # 句子开始设置CLS 标志
+        ntokens.append("[CLS]")
         segment_ids.append(0)
         # append("O") or append("[CLS]") not sure!
-        label_ids.append(label_map["[CLS]"])  # O OR CLS 没有任何影响，不过我觉得O 会减少标签个数,不过句首和句尾使用不同的标志来标注，使用CLS也没毛病
+        label_ids.append(label_map["[CLS]"])  # O OR CLS both make sense
         for i, token in enumerate(tokens):
             ntokens.append(token)
             segment_ids.append(0)
             label_ids.append(label_map[labels[i]])
-        ntokens.append("[SEP]")  # 句尾添加[SEP] 标志
+        ntokens.append("[SEP]")
         segment_ids.append(0)
         # append("O") or append("[SEP]") not sure!
         label_ids.append(label_map["[SEP]"])
-        input_ids = tokenizer.convert_tokens_to_ids(ntokens)  # 将序列中的字(ntokens)转化为ID形式
+        input_ids = tokenizer.convert_tokens_to_ids(ntokens)
         input_mask = [1] * len(input_ids)
         # padding
         while len(input_ids) < max_seq_length:
@@ -501,7 +369,6 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
         assert len(segment_ids) == max_seq_length
         assert len(label_ids) == max_seq_length
 
-        # 打印部分样本数据信息
         if ex_index < 5:
             tf.logging.info("*** Example ***")
             tf.logging.info("guid: %s" % (example.guid))
@@ -729,8 +596,6 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         token_type_ids=segment_ids,
         use_one_hot_embeddings=use_one_hot_embeddings)
 
-    # 要实现对模型的改造与使用，全部在这个函数中进行
-
     # In the demo, we are doing a simple classification task on the entire
     # segment.
     #
@@ -738,7 +603,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
     # instead.
 
     if FLAGS.task_name.lower() == 'ner':
-        # 获取对应的embedding 输入数据[batch_size, seq_length, embedding_size]
+        # get output [batch_size, seq_length, embedding_size]
 
         output_layer = model.get_sequence_output()
 
@@ -755,7 +620,6 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
             if is_training:
                 output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
 
-            # 将词性标注问题看做是对每个位置的词的分类问题
             output_layer = tf.reshape(output_layer, [-1, hidden_size])
             logits = tf.matmul(output_layer, output_weight, transpose_b=True)
             logits = tf.nn.bias_add(logits, output_bias)
@@ -767,7 +631,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
             probabilities = tf.nn.softmax(logits, axis=-1)
             predict = tf.argmax(probabilities, axis=-1)
 
-            return (loss, per_example_loss, logits, predict)
+            return loss, per_example_loss, logits, predict
 
     else:
         output_layer = model.get_pooled_output()
@@ -822,7 +686,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
         #     is_real_example = tf.ones(tf.shape(label_ids), dtype=tf.float32)
 
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-        # 使用参数构建模型,input_idx 就是输入的样本idx表示，label_ids 就是标签的idx表示
+        # create model
         if FLAGS.task_name.lower() == 'ner':
             (total_loss, per_example_loss, logits, predicts) = create_model(
                 bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
@@ -850,7 +714,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
             else:
                 tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
-        # 加载的模型参数
+        # params loaded
         tf.logging.info("**** Trainable Variables ****")
         for var in tvars:
             init_string = ""
@@ -863,7 +727,8 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
         if mode == tf.estimator.ModeKeys.TRAIN:
 
             train_op = optimization.create_optimizer(
-                loss=total_loss, init_lr=learning_rate, num_train_steps=num_train_steps, num_warmup_steps=num_warmup_steps)
+                loss=total_loss, init_lr=learning_rate, num_train_steps=num_train_steps,
+                num_warmup_steps=num_warmup_steps)
 
             output_spec = tf.contrib.tpu.TPUEstimatorSpec(
                 mode=mode,
@@ -871,7 +736,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
                 train_op=train_op,
                 scaffold_fn=scaffold_fn)
         elif mode == tf.estimator.ModeKeys.EVAL:
-            ### 词性标注问题评价函数设计
+            # metric design
             if FLAGS.task_name.lower() == 'ner':
                 def metric_fn(per_example_loss, label_ids, logits):
                     predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
@@ -1002,9 +867,7 @@ def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
 
     processors = {
-        "pair_sentence": sentence_pair,
-        "text_classify": classify_text,
-        "ner": Ner_processor,
+        "ner": NerProcessor
     }
 
     tokenization.validate_case_matches_checkpoint(FLAGS.do_lower_case,
@@ -1064,7 +927,7 @@ def main(_):
         num_train_steps = int(
             len(train_examples) / FLAGS.train_batch_size * FLAGS.num_train_epochs)
         num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
-    ### 对于词性标注问题，注意num_label的值
+    # for ner task，make sure num_label is right
     if FLAGS.task_name.lower() == 'ner':
         model_fn = model_fn_builder(
             bert_config=bert_config,

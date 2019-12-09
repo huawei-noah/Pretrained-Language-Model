@@ -4,8 +4,7 @@
 #start codes for running ds tasks prediction
 #################
 
-
-python run_classifier_ner.py \
+python ../run_classifier_ner.py \
   --task_name=$1 \
   --do_predict=true \
   --data_dir=$2 \

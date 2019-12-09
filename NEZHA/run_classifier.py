@@ -314,7 +314,7 @@ class MnliProcessor(DataProcessor):
 
 
 class LcqmcProcessor(DataProcessor):
-    """Processor for the LCQMC data set (GLUE version)."""
+    """Processor for the LCQMC data set."""
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -390,7 +390,7 @@ class MrpcProcessor(DataProcessor):
         return examples
 
 
-class IntentProcessor(DataProcessor):
+class TextClfProcessor(DataProcessor):
     """processor for multi-class text classification."""
 
     def __init__(self):
@@ -401,7 +401,8 @@ class IntentProcessor(DataProcessor):
         with open(file_path, 'r', encoding="utf-8") as f:
             reader = f.readlines()
         random.seed(0)
-        random.shuffle(reader)  #
+        # shuffle train data
+        random.shuffle(reader)
 
         examples = []
         for index, line in enumerate(reader):
@@ -417,36 +418,24 @@ class IntentProcessor(DataProcessor):
 
     def get_dev_examples(self, data_dir):
         file_path = os.path.join(data_dir, 'dev.tsv')
-        with open(file_path, 'r', encoding="utf-8") as f:
-            reader = f.readlines()
-
-        examples = []
-        for index, line in enumerate(reader):
-            guid = 'train-%d' % index
-            split_line = line.strip().split("\t")
-            text_a = tokenization.convert_to_unicode(split_line[1])
-            text_b = None
-            label = split_line[0]
-            examples.append(InputExample(guid=guid, text_a=text_a,
-                                         text_b=text_b, label=label))
-
-        return examples
+        return self._create_examples(
+            self._read_tsv(file_path), "dev")
 
     def get_test_examples(self, data_dir):
         file_path = os.path.join(data_dir, 'test.tsv')
-        with open(file_path, 'r', encoding="utf-8") as f:
-            reader = f.readlines()
+        return self._create_examples(
+            self._read_tsv(file_path), "test")
 
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
         examples = []
-        for index, line in enumerate(reader):
-            guid = 'train-%d' % index
-            split_line = line.strip().split("\t")
-            text_a = tokenization.convert_to_unicode(split_line[1])
+        for (i, line) in enumerate(lines):
+            guid = "%s-%s" % (set_type, i)
+            text_a = tokenization.convert_to_unicode(line[1])
             text_b = None
-            label = split_line[0]
-            examples.append(InputExample(guid=guid, text_a=text_a,
-                                         text_b=text_b, label=label))
-
+            label = line[0]
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
     def get_labels(self):
@@ -793,7 +782,8 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
         if mode == tf.estimator.ModeKeys.TRAIN:
 
             train_op = optimization.create_optimizer(
-                loss=total_loss, init_lr=learning_rate, num_train_steps=num_train_steps, num_warmup_steps=num_warmup_steps)
+                loss=total_loss, init_lr=learning_rate, num_train_steps=num_train_steps,
+                num_warmup_steps=num_warmup_steps)
 
             output_spec = tf.contrib.tpu.TPUEstimatorSpec(
                 mode=mode,
@@ -909,7 +899,7 @@ def main(_):
         "mnli": MnliProcessor,
         "mrpc": MrpcProcessor,
         "xnli": XnliProcessor,
-        "text_clf": IntentProcessor,
+        "text_clf": TextClfProcessor,
         "lcqmc": LcqmcProcessor,
     }
 
@@ -1071,9 +1061,8 @@ def main(_):
     if FLAGS.do_train_and_eval:
         tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
     if FLAGS.do_predict:
-
         predict_examples = processor.get_test_examples(FLAGS.data_dir)
-        tf.logging.info('*****************label_list for prediction is %s' % str(label_list))
+        tf.logging.info('*****label_list for prediction is %s' % str(label_list))
         time.sleep(5)
         num_actual_predict_examples = len(predict_examples)
         if FLAGS.use_tpu:

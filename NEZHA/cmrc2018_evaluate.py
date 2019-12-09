@@ -14,15 +14,12 @@ import re
 import argparse
 import json
 import sys
-reload(sys)
-sys.setdefaultencoding('utf8')
 import nltk
 import pdb
 
-
 # split Chinese with English
 def mixed_segmentation(in_str, rm_punc=False):
-	in_str = str(in_str).decode('utf-8').lower().strip()
+	in_str = str(in_str).lower().strip()# .decode('utf-8')
 	segs_out = []
 	temp_str = ""
 	sp_char = ['-',':','_','*','^','/','\\','~','`','+','=',
@@ -31,7 +28,7 @@ def mixed_segmentation(in_str, rm_punc=False):
 	for char in in_str:
 		if rm_punc and char in sp_char:
 			continue
-		if re.search(ur'[\u4e00-\u9fa5]', char) or char in sp_char:
+		if re.compile(u'[u\4e00-\u9fa5]').search(char) or char in sp_char:
 			if temp_str != "":
 				ss = nltk.word_tokenize(temp_str)
 				segs_out.extend(ss)
@@ -39,6 +36,7 @@ def mixed_segmentation(in_str, rm_punc=False):
 			segs_out.append(char)
 		else:
 			temp_str += char
+
 	#handling last part
 	if temp_str != "":
 		ss = nltk.word_tokenize(temp_str)
@@ -46,9 +44,10 @@ def mixed_segmentation(in_str, rm_punc=False):
 
 	return segs_out
 
+
 # remove punctuation
 def remove_punctuation(in_str):
-	in_str = str(in_str).decode('utf-8').lower().strip()
+	in_str = str(in_str).lower().strip()#.decode('utf-8')
 	sp_char = ['-',':','_','*','^','/','\\','~','`','+','=',
 			   '，','。','：','？','！','“','”','；','’','《','》','……','·','、',
 			   '「','」','（','）','－','～','『','』']
@@ -59,6 +58,7 @@ def remove_punctuation(in_str):
 		else:
 			out_segs.append(char)
 	return ''.join(out_segs)
+
 
 # find longest common string
 def find_lcs(s1, s2):
@@ -74,6 +74,7 @@ def find_lcs(s1, s2):
 					p=i+1
 	return s1[p-mmax:p], mmax
 
+#
 def evaluate(ground_truth_file, prediction_file):
 	f1 = 0
 	em = 0
@@ -88,16 +89,20 @@ def evaluate(ground_truth_file, prediction_file):
 				query_id    = qas['id'].strip()
 				query_text  = qas['question'].strip()
 				answers 	= [x["text"] for x in qas['answers']]
+
 				if query_id not in prediction_file:
 					sys.stderr.write('Unanswered question: {}\n'.format(query_id))
 					skip_count += 1
 					continue
-				prediction 	= str(prediction_file[query_id]).decode('utf-8')
+
+				prediction 	= str(prediction_file[query_id])#.decode('utf-8')
 				f1 += calc_f1_score(answers, prediction)
 				em += calc_em_score(answers, prediction)
+
 	f1_score = 100.0 * f1 / total_count
 	em_score = 100.0 * em / total_count
 	return f1_score, em_score, total_count, skip_count
+
 
 def calc_f1_score(answers, prediction):
 	f1_scores = []
@@ -114,6 +119,7 @@ def calc_f1_score(answers, prediction):
 		f1_scores.append(f1)
 	return max(f1_scores)
 
+
 def calc_em_score(answers, prediction):
 	em = 0
 	for ans in answers:
@@ -125,19 +131,22 @@ def calc_em_score(answers, prediction):
 	return em
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description='Evaluation Script for CMRC 2018')
-	parser.add_argument('dataset_file', help='Official dataset file')
-	parser.add_argument('prediction_file', help='Your prediction File')
-	args = parser.parse_args()
-	ground_truth_file   = json.load(open(args.dataset_file, 'rb'))
-	prediction_file     = json.load(open(args.prediction_file, 'rb'))
-	F1, EM, TOTAL, SKIP = evaluate(ground_truth_file, prediction_file)
-	AVG = (EM+F1)*0.5
-	output_result = OrderedDict()
-	output_result['AVERAGE'] = '%.3f' % AVG
-	output_result['F1'] = '%.3f' % F1
-	output_result['EM'] = '%.3f' % EM
-	output_result['TOTAL'] = TOTAL
-	output_result['SKIP'] = SKIP
-	output_result['FILE'] = args.prediction_file
-	print(json.dumps(output_result))
+    parser = argparse.ArgumentParser(description='Evaluation Script for CMRC 2018')
+    parser.add_argument('dataset_file', help='Official dataset file')
+    parser.add_argument('prediction_file', help='Your prediction File')
+    parser.add_argument('output_metrics', help='output_metrics')
+    args = parser.parse_args()
+    ground_truth_file   = json.load(open(args.dataset_file, 'rb'))
+    prediction_file     = json.load(open(args.prediction_file, 'rb'))
+    F1, EM, TOTAL, SKIP = evaluate(ground_truth_file, prediction_file)
+    AVG = (EM+F1)*0.5
+    output_result = OrderedDict()
+    output_result['AVERAGE'] = '%.3f' % AVG
+    output_result['F1'] = '%.3f' % F1
+    output_result['EM'] = '%.3f' % EM
+    output_result['TOTAL'] = TOTAL
+    output_result['SKIP'] = SKIP
+    output_result['FILE'] = args.prediction_file
+    print(json.dumps(output_result))
+    with open(args.output_metrics,'w') as wr:
+        wr.write(json.dumps(output_result))

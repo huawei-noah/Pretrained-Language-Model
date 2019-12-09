@@ -41,13 +41,13 @@ with open(results_file, "w") as writer:
 
 # do predict
 if 'ner' in args.task_name:
-    predict_script = "scripts/run_seq_labelling_predict.sh"
+    predict_script = "run_seq_labelling_predict.sh"
     predict_cmd = ["bash", predict_script, 'ner', args.task_data_dir, args.pretrained_model_dir,
                    args.task_output_dir + 'model.ckpt-' + str(acc_dict[best_re]),
                    args.max_seq_length, args.predict_batch_size, args.task_output_dir]
 
 else:
-    predict_script = "scripts/run_clf_predict.sh"
+    predict_script = "run_clf_predict.sh"
     predict_cmd = ["bash", predict_script, args.task_name, args.task_data_dir, args.pretrained_model_dir,
                    args.task_output_dir + 'model.ckpt-' + str(acc_dict[best_re]),
                    args.max_seq_length, args.predict_batch_size, args.task_output_dir]

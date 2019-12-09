@@ -49,23 +49,23 @@ python cmrc2018_evaluate.py data/cmrc/cmrc2018_dev.json output/cmrc/dev_predicti
  We released 4 Chinese pretrained models, `bert-base` and `bert-large`, models with `WWM` tag means `Whole Word Masking`.
 
 * NEZHA-base 
-Baidu Yun [download](https://pan.baidu.com/s/1UVQjy9v_Sv4cQd1ELdjqww), password:ntn3
+Baidu Yun [download](https://pan.baidu.com/s/1UVQjy9v_Sv4cQd1ELdjqww), password:ntn3, 
 Google Driver [download](https://drive.google.com/drive/folders/1tFs-wMoXIY8zganI2hQgDBoDPqA8pSmh?usp=sharing)
 
 * NEZHA-base-WWM 
-Baidu Yun [download](https://pan.baidu.com/s/1-YG8e5V2zKCnR3azsGZT1w), password:f68o
+Baidu Yun [download](https://pan.baidu.com/s/1-YG8e5V2zKCnR3azsGZT1w), password:f68o, 
 Google Driver [download](https://drive.google.com/drive/folders/1bK6WbqAG-B6BX2d9RPprnh2MPK6zL0t_?usp=sharing)
 
 * NEZHA-large 
-Baidu Yun [download](https://pan.baidu.com/s/1R1Ew-Lu8oIP6QhWO6nqp5Q), password:7thu2
+Baidu Yun [download](https://pan.baidu.com/s/1R1Ew-Lu8oIP6QhWO6nqp5Q), password:7thu2, 
 Google Driver [download](https://drive.google.com/drive/folders/1ZPPM5XtTTOrS_CDRak1t2nCBU-LFZ_zs?usp=sharing)
 
 * NEZHA-large-WWM
-Baidu Yun [download](https://pan.baidu.com/s/1JK1RLIJd2wpuypku3stt8w), password:ni4o
+Baidu Yun [download](https://pan.baidu.com/s/1JK1RLIJd2wpuypku3stt8w), password:ni4o, 
 Google Driver [download](https://drive.google.com/drive/folders/1LOAUc9LXyogC2gmP_q1ojqj41Ez01aga?usp=sharing)
 
 * MD5 File
-Baidu Yun [download](https://pan.baidu.com/s/1EeFXcmFBaJ3tDQQGYoaQPQ ), password:yxpk
+Baidu Yun [download](https://pan.baidu.com/s/1EeFXcmFBaJ3tDQQGYoaQPQ ), password:yxpk, 
 Google Driver [download](https://drive.google.com/file/d/1eWRvd3k5XK6sOlAPPpCWowHubLeRk3G-/view?usp=sharing)
 
 

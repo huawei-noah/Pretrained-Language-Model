@@ -46,7 +46,7 @@ python cmrc2018_evaluate.py data/cmrc/cmrc2018_dev.json output/cmrc/dev_predicti
 
 ## 4. NEZHA model download
 
- We released 4 Chinese pretrained models, `bert-base` and `bert-large`, models with `WWM` tag means `Whole Word Masking`.
+ We released 4 Chinese pretrained models, `NEZHA-base` and `NEZHA-large`, models with `WWM` tag means `Whole Word Masking`.
 
 * NEZHA-base: 
 Baidu Yun [download](https://pan.baidu.com/s/1UVQjy9v_Sv4cQd1ELdjqww), password:ntn3; 

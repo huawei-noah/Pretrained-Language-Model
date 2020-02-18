@@ -57,7 +57,7 @@ Baidu Yun [download](https://pan.baidu.com/s/1-YG8e5V2zKCnR3azsGZT1w), password:
 Google Driver [download](https://drive.google.com/drive/folders/1bK6WbqAG-B6BX2d9RPprnh2MPK6zL0t_?usp=sharing)
 
 * NEZHA-large: 
-Baidu Yun [download](https://pan.baidu.com/s/1R1Ew-Lu8oIP6QhWO6nqp5Q), password:7thu2; 
+Baidu Yun [download](https://pan.baidu.com/s/1R1Ew-Lu8oIP6QhWO6nqp5Q), password:7thu; 
 Google Driver [download](https://drive.google.com/drive/folders/1ZPPM5XtTTOrS_CDRak1t2nCBU-LFZ_zs?usp=sharing)
 
 * NEZHA-large-WWM:

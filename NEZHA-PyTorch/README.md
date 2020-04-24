@@ -1,4 +1,4 @@
-# NEZHA pytorch version
+# NEZHA PyTorch version
 We only provide fine-tuning codes for sentence classification task in this repository. For MRC and sequential labelling task, please see [CLUE](https://github.com/CLUEbenchmark/CLUE).
 
 ### requirements

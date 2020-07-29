@@ -12,7 +12,7 @@ Environment
 ============
 The scripts are tested sucessfully with Tensorflow 1.13 and Python 3.6. 
 
-The python package ``fire`` is required. You may need to install the ``fire`` package iwith the command:
+The python package ``fire`` is required. You may need to install the ``fire`` package with the command:
 
 ```
 pip3 install fire

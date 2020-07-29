@@ -1,7 +1,7 @@
 
-NEZHA-Generative
+NEZHA-Gen-TensorFlow
 =============
-NEZHA-Generative is a GPT-like model pretrained by Huawei Noah's Ark Lab
+NEZHA-Gen-TensorFlow is a Chinese GPT-like model pretrained by Huawei Noah's Ark Lab
 
 
 Release Notes

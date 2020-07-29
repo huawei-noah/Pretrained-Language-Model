@@ -1081,7 +1081,7 @@ def interact_model(
         print('Prompt should not be empty!')
         raw_text = input("Model prompt >>> ")
       context_tokens = GenerativeModel.encodetext(raw_text,vocab_file=vocab_file,do_lower_case=do_lower_case)
-      input_context_tokens = [1]
+      input_context_tokens = [101]
       input_context_tokens.extend(context_tokens[-100:])
       out = sess.run(output, feed_dict={
           input_ids: [input_context_tokens for _ in range(1)]

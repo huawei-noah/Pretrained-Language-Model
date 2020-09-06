@@ -7,4 +7,5 @@ This repository provides the latest pretrained language models and its related o
 * [NEZHA-PyTorch](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/NEZHA-PyTorch) is the PyTorch version of NEZHA.
 * [NEZHA-Gen-TensorFlow](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/NEZHA-Gen-TensorFlow) is a Chinese GPT-like pretrained language model.
 * [TinyBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/TinyBERT) is a compressed BERT model which achieves 7.5x smaller and 9.4x faster on inference.
+* [DynaBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/DynaBERT) is a dynamic BERT model with adaptive width and depth.
   

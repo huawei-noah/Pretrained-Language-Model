@@ -1,0 +1,14 @@
+<unk>	
+<s>	
+</s>	
+<TERM>	
+</TERM>	
+<MID>	
+=SYMBOL=	
+=NUMBER=	
+=QUANTIFIER=	
+=DATE=	
+=TIME=	
+=RANGE=	
+<PUNC>	
+<BT>

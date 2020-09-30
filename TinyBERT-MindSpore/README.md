@@ -1,4 +1,8 @@
+# TinyBERT for MindSpore
+This repository provides an implementation of TinyBERT model on [MindSpore](https://www.mindspore.cn/en), which is copied from the MindSpore [Model Zoo](https://gitee.com/mindspore/mindspore/tree/master/model_zoo/official/nlp/tinybert).
+
 # Contents
+- [TinyBERT for MindSpore](#tinybert-for-mindspore)
 - [Contents](#contents)
 - [TinyBERT Description](#tinybert-description)
 - [Model Architecture](#model-architecture)

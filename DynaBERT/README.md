@@ -130,14 +130,13 @@ python eval_glue.py \
 
 
 ## Reference
-Lu Hou, Lifeng Shang, Xin Jiang, Qun Liu.
+Lu Hou, Zhiqi Huang, Lifeng Shang, Xin Jiang, Xiao Chen, Qun Liu.
 [DynaBERT: Dynamic BERT with Adaptive Width and Depth](https://arxiv.org/abs/2004.04037).
 ```
-@techreport{hou2020dynabert,
+@inproceedings{hou2020dynabert,
   title = {DynaBERT: Dynamic BERT with Adaptive Width and Depth},
-  author = {Lu Hou, Lifeng Shang, Xin Jiang, Qun Liu},  
-  number = {arXiv:2004.04037},
-  type = {Preprint},
+  author = {Lu Hou, Zhiqi Huang, Lifeng Shang, Xin Jiang, Xiao Chen, Qun Liu},  
+  booktitle={Advances in Neural Information Processing Systems}
   year = {2020},
 }
 ```

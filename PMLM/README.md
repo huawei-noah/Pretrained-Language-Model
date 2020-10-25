@@ -1,5 +1,5 @@
 
-# Probabilistically Masked Language Model ([paper](https://arxiv.org/pdf/2004.11579.pdf))([slides]()).
+# Probabilistically Masked Language Model ([paper](https://arxiv.org/pdf/2004.11579.pdf))([slides](https://drive.google.com/file/d/1F5T5bvlvBLTNptUshvw6TzbVzB7gzBr8/view)).
 **PMLM** is an improved method for pretrained language model. Trained without the complex two-stream self-attention, PMLM can be treated as a simple approximation of XLNet.
 **PMLM** bridges the gap between the autoregressive language model (e.g. GPT) and the masked language model (e.g. BERT). 
 On one hand, PMLM can generate fluent text in arbitrary text order. On the other hand, PMLM consistently and significantly 

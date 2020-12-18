@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors, The HuggingFace Inc. team and Huawei Noah's Ark Lab.
+# 2020.12.18-Changed for fine-tuning NEZHA model.
+# Huawei Technologies Co., Ltd. <foss@huawei.com> 
+# Copyright 2020 Huawei Technologies Co., Ltd.
+# Copyright 2018 The Google AI Language Team Authors, The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1024,7 +1027,7 @@ def main():
 
             logits = logits.detach().cpu().numpy()
             label_ids = label_ids.to('cpu').numpy()
-            tmp_eval_accuracy, batch_result = accuracy(logits, label_ids, output_positive_prob=True)
+            tmp_eval_accuracy, batch_result = accuracy(logits, label_ids)
             for i in range(input_ids.size()[0]):
                 eval_all_result.append(batch_result[i])
 

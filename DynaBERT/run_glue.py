@@ -1,7 +1,7 @@
 # coding=utf-8
 # 2020.08.28 - Changed regular fine-tuning to fine-tuning with adaptive width and depth
 #              Huawei Technologies Co., Ltd <houlu3@huawei.com>
-# Copyright (c) 2020, Huawei Noah's Ark Lab.
+# Copyright (c) 2020, Huawei Technologies Co., Ltd.  All rights reserved.
 # Copyright 2018 The Google AI Language Team Authors,  the HuggingFace Inc.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #

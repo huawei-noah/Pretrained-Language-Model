@@ -3,7 +3,7 @@
 #              (2) Added modules to rewire the BERT model according to the importance of attention
 #                  heads and neurons in the intermediate layer of Feed-forward Network.
 #              Huawei Technologies Co., Ltd <houlu3@huawei.com>
-# Copyright (c) 2020, Huawei Noah's Ark Lab.
+# Copyright (c) 2020, Huawei Technologies Co., Ltd.  All rights reserved.
 # Copyright 2018 The Google AI Language Team Authors and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #

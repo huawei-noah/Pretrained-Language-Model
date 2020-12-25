@@ -42,7 +42,7 @@ Our fine-tuning codes are mainly based on [Google BERT](https://github.com/googl
 ```shell
 python cmrc2018_evaluate.py data/cmrc/cmrc2018_dev.json output/cmrc/dev_predictions.json output/cmrc/metric.txt. 
 ```
-
+cmrc2018_evaluate.py can be found [here](https://github.com/ymcui/cmrc2018/tree/master/baseline).
 
 ## 4. NEZHA model download
 

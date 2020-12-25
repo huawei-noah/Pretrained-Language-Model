@@ -8,6 +8,10 @@ Software: bert (https://github.com/google-research/bert)
 Copyright notice: 
 Copyright 2018 The Google AI Language Team Authors.
 
+Software: bert (https://github.com/NVIDIA/DeepLearningExamples/tree/master/TensorFlow/LanguageModeling/BERT)
+Copyright notice: 
+Copyright 2019 NVIDIA CORPORATION.
+
 License: Apache License Version 2.0
 
 Copyright 2018 The Google AI Language Team Authors.

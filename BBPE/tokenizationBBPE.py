@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2019 Huawei Noah's Ark Lab and Cloud BU.
+# 2019.11.25-Changed for finetuning pruned model 
+#            Huawei Technologies Co., Ltd. <foss@huawei.com> 
+#
+# Copyright 2018 The Google AI Language Team Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

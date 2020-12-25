@@ -1,6 +1,6 @@
 set -e
 
-TEXT_DIR=./MTData/ #./wiki_others-hebin-yafu/wiki_others-hebin-yafu/
+TEXT_DIR=./MTData/
 NUM=0
 for TEXT_FILE in ${TEXT_DIR}/*; do
 NUM=$((NUM+1))

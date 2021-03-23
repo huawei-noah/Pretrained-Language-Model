@@ -918,7 +918,7 @@ class BertForMaskedLM(BertPreTrainedModel):
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None,
                 output_att=False, infer=False):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask,
-                                       output_all_encoded_layers=True, output_att=output_att)
+                                       output_all_encoded_layers=True)#, output_att=output_att)
 
         if output_att:
             sequence_output, att_output = sequence_output

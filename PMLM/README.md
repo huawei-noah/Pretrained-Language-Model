@@ -5,6 +5,8 @@
 On one hand, PMLM can generate fluent text in arbitrary text order. On the other hand, PMLM consistently and significantly 
 outperforms BERT on natural language understanding tasks. 
 
+## LASTEST NEWS
+We have added the support for text generation with PMLM. (30/04/2021 updated)
 
 ## Requirements
 * Python 3
@@ -26,6 +28,12 @@ For example, when masked_lm_prob=0.8, the uniform distribution takes values with
 We release two models for downloading: [u-PMLM-R](https://drive.google.com/file/d/1SdytT4TQVIOUcbCQfGSSA067mde0ytA3/view?usp=sharing) and [u-PMLM-A](https://drive.google.com/file/d/15yBa896-1RpsJJB8mKCmy14Xi8gRFAii/view?usp=sharing). Both models are trained on Wikipedia and BookCorpus. Both models use the cased version of BERT vocabulary and the uniform distribution takes values in [0.1.0]. 
 We observe that there are no much differences regarding performances when trained with uniform distribution valued in [0,0.5].  
 Note that the sequence length is set to 128 rather than 512, hence the embedding for positions 128~511 are not trained for u-PMLM-A, which might harm tasks requiring more than 128 tokens per sequence such as SQuAD. This is not a problem for U-PMLM-R though, as it uses relative position.
+
+## Employing PMLM for arbitrily ordered text generation (30/04/2021 updated)
+We release the PMLM  model that has been finetuned on the wikitext-103 dataset. The model can be downloded [here](https://drive.google.com/file/d/1jRcBO4wQiR_eZW3V58iCBn18MgXz4oLz/view?usp=sharing). Use the command ```python interactive_conditional_samples_sincos_acrostic``` for text generation.
+
+Note: The code can also load the pretrained PMLM models such as u-PMLM-A and u-PMLM-R. However, the pretrained models are trained with BERT-style data, where 50% of the training sequences are composed of two sentences that are not adjacent. Thus the generated sentences are not coherent at some position in the middle. The PMLM model finetuned with wikitext-103, however, does not have such problem as the training sequence are coherent sentences in the corpus.
+
 
 ## Detailed  experimental results on dev set of GLUE for u-PMLM-R
 In our original paper, we did not search for a good hyperparameter setting on GLUE tasks for u-PMLM. We just followed the settings of BERT. 
@@ -81,5 +89,5 @@ Checkpoints are saved and evaluated every 100 steps and 28 checkpoints (28 rough
 For the first run, 63.42 refers to the best accuracy on the dev set among 28 evaluated checkpoints and
  62.13 refers to the accuracy of the last step checkpoint. We provide the complete results as the finetune process is unstable, where the results vary a lot even with different random seeds.
 
-## To Do
-We will release the inference code for text generation in arbitrary order soon.
+## LASTEST NEWS
+

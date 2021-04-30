@@ -1,7 +1,9 @@
 # coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors.
+#
+# Add Lamb optimizer; Huawei Technologies Co., Ltd
 # Copyright (C) 2019. Huawei Technologies Co., Ltd. All rights reserved.
 #
+# Copyright 2018 The Google AI Language Team Authors.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at

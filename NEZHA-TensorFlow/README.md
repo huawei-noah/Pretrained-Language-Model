@@ -42,7 +42,7 @@ Our fine-tuning codes are mainly based on [Google BERT](https://github.com/googl
 ```shell
 python cmrc2018_evaluate.py data/cmrc/cmrc2018_dev.json output/cmrc/dev_predictions.json output/cmrc/metric.txt. 
 ```
-
+cmrc2018_evaluate.py can be found [here](https://github.com/ymcui/cmrc2018/tree/master/baseline).
 
 ## 4. NEZHA model download
 
@@ -67,6 +67,12 @@ Google Driver [download](https://drive.google.com/drive/folders/1LOAUc9LXyogC2gm
 * MD5 File:
 Baidu Yun [download](https://pan.baidu.com/s/1EeFXcmFBaJ3tDQQGYoaQPQ ), password:yxpk;  
 Google Driver [download](https://drive.google.com/file/d/1eWRvd3k5XK6sOlAPPpCWowHubLeRk3G-/view?usp=sharing)
+
+We further released a multilingual pretrained model `NEZHA-base-multilingual-11-cased` tokenized with [Byte BPE](). Currently the model covers 11 languages (in alphabetical order): Arabic, Deutsch, English, Espanol, French, Italian, Malay Polish, Portuguese, Russian and Thai.
+
+* NEZHA-base-multilingual-11-cased: 
+Baidu Yun [download](), password:ntn3; 
+Google Driver [download]()
 
 
 ## 5. References

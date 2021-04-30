@@ -31,6 +31,9 @@ Step 2: Run the script ``poetry.py`` with the command to see a demo output:
 python3 poetry.py
 ```
 
+The opensourced Yuefu is only for academic research.
+Any business application should refer to [Huawei Cloud API](https://support.huaweicloud.com/api-nlp/nlp_03_0070.html).
+
 
 Usage of GPT
 ====================

@@ -1,0 +1,7 @@
+boto3
+requests
+scipy
+future
+Pillow
+tensorflow==1.14.0
+torch==1.1.0

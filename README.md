@@ -14,4 +14,3 @@ This repository provides the latest pretrained language models and its related o
 * [PMLM](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/PMLM) is an improved method for pretrained language model. Trained without the complex two-stream self-attention, PMLM can be treated as a simple approximation of XLNet.
 * [TernaryBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/TernaryBERT) is a pytorch version quantization method for BERT model.
 * [HyperText](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/HyperText) is an efficient text classification model using hyperbolic geometry theories.
-* [SumTitles](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/SumTitles) is a summarization corpus with low extractivity.

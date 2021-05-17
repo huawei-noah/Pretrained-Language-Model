@@ -3,5 +3,5 @@ requests
 scipy
 future
 Pillow
-tensorflow==1.14.0
+tensorflow==2.4.0
 torch==1.1.0

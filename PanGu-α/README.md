@@ -1,6 +1,7 @@
 # PanGu-α
 This repository is cloned from [OpenI](https://git.openi.org.cn/PCL-Platform.Intelligence/PanGu-Alpha).
-PanGu-α is a 200B parameter autoregressive pretrained Chinese language model develped by Huawei Noah's Ark Lab, MindSpore Team and PengCheng Lab.
+
+PanGu-α is a 200B parameter autoregressive pretrained Chinese language model develped by Huawei Noah's Ark Lab, MindSpore Team and Peng Cheng Laboratory.
 
 ## 鹏程.盘古α介绍
 

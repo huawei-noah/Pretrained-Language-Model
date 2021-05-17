@@ -1,0 +1,3 @@
+numpy
+scikit-learn
+torch==1.3.0

@@ -13,4 +13,5 @@ This repository provides the latest pretrained language models and its related o
 * [BBPE](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/BBPE) provides a byte-level vocabulary building tool and its correspoinding tokenizer.
 * [PMLM](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/PMLM) is an improved method for pretrained language model. Trained without the complex two-stream self-attention, PMLM can be treated as a simple approximation of XLNet.
 * [TernaryBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/TernaryBERT) is a pytorch version quantization method for BERT model.
+* [TernaryBERT-MindSpore](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/TernaryBERT-MindSpore) is a MindSpore version of TernaryBERT.
 * [HyperText](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/HyperText) is an efficient text classification model using hyperbolic geometry theories.

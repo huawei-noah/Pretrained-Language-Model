@@ -1,8 +1,0 @@
-tqdm
-pandas
-numpy
-tensorflow-hub
-sentence-transformers
-spacy
-beautifulsoup4
-nltk

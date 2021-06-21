@@ -311,7 +311,7 @@ class BasicTokenizer(object):
     # and generally don't have any Chinese data in them (there are Chinese
     # characters in the vocabulary because Wikipedia does have some Chinese
     # words in the English Wikipedia.).
-    text = self._tokenize_chinese_chars(text)
+    if self.CJK_tokenize == False: text = self._tokenize_chinese_chars(text)
 
     orig_tokens = whitespace_tokenize(text)
     split_tokens = []

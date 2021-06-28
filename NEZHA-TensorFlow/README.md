@@ -68,11 +68,11 @@ Google Driver [download](https://drive.google.com/drive/folders/1LOAUc9LXyogC2gm
 Baidu Yun [download](https://pan.baidu.com/s/1EeFXcmFBaJ3tDQQGYoaQPQ ), password:yxpk;  
 Google Driver [download](https://drive.google.com/file/d/1eWRvd3k5XK6sOlAPPpCWowHubLeRk3G-/view?usp=sharing)
 
-We further released a multilingual pretrained model `NEZHA-base-multilingual-11-cased` tokenized with [Byte BPE](). Currently the model covers 11 languages (in alphabetical order): Arabic, Deutsch, English, Espanol, French, Italian, Malay Polish, Portuguese, Russian and Thai.
+We further released a multilingual pretrained model `NEZHA-base-multilingual-11-cased` tokenized with [Byte BPE](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/BBPE). Currently the model covers 11 languages (in alphabetical order): Arabic, Deutsch, English, Espanol, French, Italian, Malay Polish, Portuguese, Russian and Thai.
 
 * NEZHA-base-multilingual-11-cased: 
-Baidu Yun [download](), password:ntn3; 
-Google Driver [download]()
+Baidu Yun [download](https://pan.baidu.com/s/1yddjyoMxIKPfsUvx1YDH-Q), password:gs31; 
+Google Driver [download](https://drive.google.com/file/d/1430BzQbiHxvq8ZrKj6FQu3nmDMLtKmDe/view?usp=sharing)
 
 
 ## 5. References

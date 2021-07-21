@@ -1,0 +1,10 @@
+# progress bars in model download and training scripts
+tqdm
+# Used for downloading models over HTTP
+requests
+
+torch==1.0.0
+python==3.6
+seaborn
+pickle
+collections

@@ -15,3 +15,5 @@ This repository provides the latest pretrained language models and its related o
 * [TernaryBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/TernaryBERT) is a weights ternarization method for BERT model developed under PyTorch.
 * [TernaryBERT-MindSpore](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/TernaryBERT-MindSpore) is the MindSpore version of TernaryBERT.
 * [HyperText](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/HyperText) is an efficient text classification model based on hyperbolic geometry theories.
+* [BinaryBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/BinaryBERT) is a weights binarization method using ternary weight splitting for BERT model, developed under PyTorch.
+

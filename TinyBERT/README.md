@@ -15,6 +15,7 @@ For more details about the techniques of TinyBERT, refer to our paper:
 Release Notes
 =============
 First version: 2019/11/26
+Add Chinese General_TinyBERT: 2021.7.27
 
 Installation
 ============
@@ -71,6 +72,11 @@ We also provide the models of general TinyBERT here and users can skip the gener
 
 [General_TinyBERT_v2(6layer-768dim)](https://drive.google.com/open?id=1r2bmEsQe4jUBrzJknnNaBJQDgiRKmQjF)
 
+=================Chinese version trained with WIKI and NEWS corpus =======
+
+[General_TinyBERT_zh(4layer-312dim)](https://huggingface.co/huawei-noah/TinyBERT_4L_zh/tree/main)
+
+[General_TinyBERT_zh(6layer-768dim)](https://huggingface.co/huawei-noah/TinyBERT_6L_zh/tree/main)
 
 Data Augmentation
 =================

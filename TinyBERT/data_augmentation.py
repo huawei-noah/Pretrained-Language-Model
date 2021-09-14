@@ -89,6 +89,7 @@ def _read_tsv(input_file, quotechar=None):
 
 
 def prepare_embedding_retrieval(glove_file, vocab_size=100000):
+    logger.info('Preparing GloVe embedding started')
     cnt = 0
     words = []
     embeddings = {}
@@ -117,6 +118,7 @@ def prepare_embedding_retrieval(glove_file, vocab_size=100000):
     # normalize each word vector
     d = (np.sum(emb_matrix ** 2, 1) ** 0.5)
     emb_norm = (emb_matrix.T / d).T
+    logger.info('Preparing GloVe embedding finished')
     return emb_norm, vocab, ids_to_tokens
 
 

@@ -261,7 +261,7 @@ class AugmentProcessor(object):
                         line[augment_id] = augment_sent
                         writer.writerow(line)
 
-                if (i+1) % 1000 == 0:
+                if (i+1) % 50 == 0:
                     logger.info("Having been processing {} examples".format(str(i+1)))
 
 

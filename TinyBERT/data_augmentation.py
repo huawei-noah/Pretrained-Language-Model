@@ -208,7 +208,7 @@ class DataAugmentor(object):
         for (idx, word) in enumerate(tokens):
             if _is_valid(word) and word not in StopWordsList:
                 candidate_words[idx] = self._word_augment(sent, idx, word)
-        logger.info(candidate_words)
+        # logger.info(candidate_words)
         cnt = 0
         while cnt < self.N:
             new_sent = list(tokens)

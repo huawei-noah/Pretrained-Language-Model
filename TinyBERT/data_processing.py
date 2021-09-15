@@ -1,4 +1,5 @@
 import csv
+import logging
 import os
 import sys
 
@@ -7,7 +8,10 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 from torch.utils.data import TensorDataset
 
-from task_distill import logger
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                    datefmt='%m/%d/%Y %H:%M:%S',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class InputExample(object):

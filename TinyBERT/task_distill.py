@@ -451,10 +451,6 @@ def main():
                     result['rep_loss'] = rep_loss
                     result['loss'] = loss
 
-                    logger.info("***** Eval results *****")
-                    for key in sorted(result.keys()):
-                        logger.info("  %s = %s", key, str(result[key]))
-
                     result_to_file(result, output_eval_file)
 
                     if not args.pred_distill:

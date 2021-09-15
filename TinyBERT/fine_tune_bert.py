@@ -194,14 +194,14 @@ def main():
 
     # intermediate distillation default parameters
     default_params = {
-        "cola": {"num_train_epochs": 50, "max_seq_length": 64},
-        "mnli": {"num_train_epochs": 5, "max_seq_length": 128},
-        "mrpc": {"num_train_epochs": 20, "max_seq_length": 128},
-        "sst-2": {"num_train_epochs": 10, "max_seq_length": 64},
-        "sts-b": {"num_train_epochs": 20, "max_seq_length": 128},
-        "qqp": {"num_train_epochs": 5, "max_seq_length": 128},
-        "qnli": {"num_train_epochs": 10, "max_seq_length": 128},
-        "rte": {"num_train_epochs": 20, "max_seq_length": 128}
+        "cola": {"num_train_epochs": 3, "max_seq_length": 64},
+        "mnli": {"num_train_epochs": 3, "max_seq_length": 128},
+        "mrpc": {"num_train_epochs": 3, "max_seq_length": 128},
+        "sst-2": {"num_train_epochs": 3, "max_seq_length": 64},
+        "sts-b": {"num_train_epochs": 3, "max_seq_length": 128},
+        "qqp": {"num_train_epochs": 3, "max_seq_length": 128},
+        "qnli": {"num_train_epochs": 3, "max_seq_length": 128},
+        "rte": {"num_train_epochs": 3, "max_seq_length": 128}
     }
 
     acc_tasks = ["mnli", "mrpc", "sst-2", "qqp", "qnli", "rte"]
@@ -311,8 +311,7 @@ def main():
             {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
         schedule = 'warmup_linear'
-        if not args.pred_distill:
-            schedule = 'none'
+
         optimizer = BertAdam(optimizer_grouped_parameters,
                              schedule=schedule,
                              lr=args.learning_rate,
@@ -379,32 +378,31 @@ def main():
                     loss = tr_loss / (step + 1)
                     cls_loss = tr_cls_loss / (step + 1)
 
-                    result = {}
-                    if args.pred_distill:
-                        result = do_eval(model, task_name, eval_dataloader,
-                                         device, output_mode, eval_labels, num_labels)
+                    result = do_eval(model, task_name, eval_dataloader,
+                                     device, output_mode, eval_labels, num_labels)
                     result['global_step'] = global_step
                     result['cls_loss'] = cls_loss
                     result['loss'] = loss
 
+                    logger.info("***** Eval results *****")
+                    for key in sorted(result.keys()):
+                        logger.info("  %s = %s", key, str(result[key]))
+
                     result_to_file(result, output_eval_file)
 
-                    if not args.pred_distill:
+                    save_model = False
+
+                    if task_name in acc_tasks and result['acc'] > best_dev_acc:
+                        best_dev_acc = result['acc']
                         save_model = True
-                    else:
-                        save_model = False
 
-                        if task_name in acc_tasks and result['acc'] > best_dev_acc:
-                            best_dev_acc = result['acc']
-                            save_model = True
+                    if task_name in corr_tasks and result['corr'] > best_dev_acc:
+                        best_dev_acc = result['corr']
+                        save_model = True
 
-                        if task_name in corr_tasks and result['corr'] > best_dev_acc:
-                            best_dev_acc = result['corr']
-                            save_model = True
-
-                        if task_name in mcc_tasks and result['mcc'] > best_dev_acc:
-                            best_dev_acc = result['mcc']
-                            save_model = True
+                    if task_name in mcc_tasks and result['mcc'] > best_dev_acc:
+                        best_dev_acc = result['mcc']
+                        save_model = True
 
                     if save_model:
                         logger.info("***** Save model *****")
@@ -412,8 +410,7 @@ def main():
                         model_to_save = model.module if hasattr(model, 'module') else model
 
                         model_name = WEIGHTS_NAME
-                        # if not args.pred_distill:
-                        #     model_name = "step_{}_{}".format(global_step, WEIGHTS_NAME)
+
                         output_model_file = os.path.join(args.output_dir, model_name)
                         output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
 
@@ -422,7 +419,7 @@ def main():
                         tokenizer.save_vocabulary(args.output_dir)
 
                         # Test mnli-mm
-                        if args.pred_distill and task_name == "mnli":
+                        if task_name == "mnli":
                             task_name = "mnli-mm"
                             processor = processors[task_name]()
                             if not os.path.exists(args.output_dir + '-MM'):

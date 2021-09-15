@@ -60,6 +60,7 @@ except:
 
 def result_to_file(result, file_name):
     with open(file_name, "a") as writer:
+        writer.write("")
         logger.info("***** Eval results *****")
         for key in sorted(result.keys()):
             logger.info("  %s = %s", key, str(result[key]))

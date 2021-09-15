@@ -194,14 +194,14 @@ def main():
 
     # intermediate distillation default parameters
     default_params = {
-        "cola": {"num_train_epochs": 3, "max_seq_length": 64},
-        "mnli": {"num_train_epochs": 3, "max_seq_length": 128},
-        "mrpc": {"num_train_epochs": 3, "max_seq_length": 128},
-        "sst-2": {"num_train_epochs": 3, "max_seq_length": 64},
-        "sts-b": {"num_train_epochs": 3, "max_seq_length": 128},
-        "qqp": {"num_train_epochs": 3, "max_seq_length": 128},
-        "qnli": {"num_train_epochs": 3, "max_seq_length": 128},
-        "rte": {"num_train_epochs": 3, "max_seq_length": 128}
+        "cola": {"num_train_epochs": 5, "max_seq_length": 64},
+        "mnli": {"num_train_epochs": 5, "max_seq_length": 128},
+        "mrpc": {"num_train_epochs": 5, "max_seq_length": 128},
+        "sst-2": {"num_train_epochs": 5, "max_seq_length": 64},
+        "sts-b": {"num_train_epochs": 5, "max_seq_length": 128},
+        "qqp": {"num_train_epochs": 5, "max_seq_length": 128},
+        "qnli": {"num_train_epochs": 5, "max_seq_length": 128},
+        "rte": {"num_train_epochs": 5, "max_seq_length": 128}
     }
 
     acc_tasks = ["mnli", "mrpc", "sst-2", "qqp", "qnli", "rte"]
@@ -367,7 +367,8 @@ def main():
                     optimizer.zero_grad()
                     global_step += 1
 
-                if (global_step + 1) % args.eval_step == 0 or (global_step + 1) in [1, num_train_optimization_steps]:
+                if (global_step + 1) % args.eval_step == 0 or (global_step + 1) == 1 or \
+                        (global_step + 1) == num_train_optimization_steps:
                     logger.info("***** Running evaluation *****")
                     logger.info("  Epoch = {} iter {} step".format(epoch_, global_step))
                     logger.info("  Num examples = %d", len(eval_examples))

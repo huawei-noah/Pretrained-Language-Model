@@ -368,7 +368,7 @@ def main():
                     optimizer.zero_grad()
                     global_step += 1
 
-                if (global_step + 1) % args.eval_step == 0 or (global_step + 1) == 1 or \
+                if (global_step + 1) % args.eval_step == 0 or (global_step + 1) == 0 or \
                         (global_step + 1) == num_train_optimization_steps:
                     logger.info("***** Running evaluation *****")
                     logger.info("  Epoch = {} iter {} step".format(epoch_, global_step))

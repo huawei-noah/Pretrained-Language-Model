@@ -61,6 +61,7 @@ except:
 def result_to_file(result, file_name):
     with open(file_name, "a") as writer:
         logger.info("***** Eval results *****")
+        writer.write("")
         for key in sorted(result.keys()):
             logger.info("  %s = %s", key, str(result[key]))
             writer.write("%s = %s\n" % (key, str(result[key])))
@@ -428,7 +429,8 @@ def main():
                     optimizer.zero_grad()
                     global_step += 1
 
-                if (global_step + 1) % args.eval_step == 0:
+                if (global_step + 1) % args.eval_step == 0 or (global_step + 1) == 0 or \
+                        (global_step + 1) == num_train_optimization_steps:
                     logger.info("***** Running evaluation *****")
                     logger.info("  Epoch = {} iter {} step".format(epoch_, global_step))
                     logger.info("  Num examples = %d", len(eval_examples))

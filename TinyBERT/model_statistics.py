@@ -47,6 +47,9 @@ def main():
     parser.add_argument("--do_lower_case",
                         action='store_true',
                         help="Set this flag if you are using an uncased model.")
+    parser.add_argument("--no_cuda",
+                        action='store_true',
+                        help="Whether not to use CUDA when available")
 
     args = parser.parse_args()
     logger.info('The args: {}'.format(args))

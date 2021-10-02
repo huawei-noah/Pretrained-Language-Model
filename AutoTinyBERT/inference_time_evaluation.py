@@ -42,6 +42,8 @@ def arch_cpu_time(model, arch, args):
             aver_time += sep / (args.infer_cnt - 1)
 
     print('{}\t{}'.format(arch, aver_time))
+    with open('./latency_dataset/lat.tmp', 'a') as f:
+        f.write(f'{arch}\t{aver_time}\n')
 
 
 if __name__ == "__main__":

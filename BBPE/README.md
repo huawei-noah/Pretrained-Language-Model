@@ -23,6 +23,8 @@ unzip bbpe.zip and go to the folder bbpe and perform the following steps.
 mkdir MTData_byte
 
 bash text2utf-8-mt-byte.sh
+
+cat MTData_byte/* > MTData_byte.txt
 ```
 
 * Note: the above source codes assume that the Chinese, Korean and Japanese text is in their natural format without any word boundary information (i.e., we assume that there is no whitespace on the boudary of each words). If your Chinese, Korean and Japanese text is tokenizied (i.e., each word has whitespaces on its boundary), please change the code 'if len(getCJK(token)) > 0 or len(getPunc(token)) > 0: ' in both line 132 and line 156 in utf-8-mt-byte.py to be 'if len(getPunc(token)) > 0: '.
@@ -34,7 +36,6 @@ bash text2utf-8-mt-byte.sh
 #### Version 1:
 
 ```
-cat MTData_byte/* > MTData_byte.txt
 
 cd fastBPE-master
 
@@ -53,9 +54,12 @@ The second version is implemented by using a tool called SentencePiece (please r
 import sentencepiece as spm
 
 spm.SentencePieceTrainer.train(input='./MTData_byte.txt', model_prefix='m', vocab_size=40000, model_type='bpe')
+```
 
+Then, you need to rename the vocabulary file with the following command. 
+
+```
 mv m.vocab vocab_bytes.txt
-
 ```
 
 The tool SentencePiece allows you to customerize your own vocabulary by using different parameters (e.g., vocab_size, model_type). You may find the details via their GitHub project (https://github.com/google/sentencepiece). 

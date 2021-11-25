@@ -1000,7 +1000,7 @@ class SuperBertForPreTraining(BertPreTrainedModel):
         self.set_sample_config(subbert_config)
 
         encoder_layers, pooled_output = self.bert(input_ids, subbert_config, token_type_ids, attention_mask)
-        sequence_output = encoder_layers[-1]
+        sequence_output = encoder_layers
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output,
                                                              subbert_config['sample_hidden_size'])
 

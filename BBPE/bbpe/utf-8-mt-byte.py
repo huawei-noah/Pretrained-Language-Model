@@ -1,17 +1,4 @@
-# coding=utf-8
-# Copyright 2020 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# -*- coding: UTF-8 -*-
 import re
 import sys
 import six
@@ -118,6 +105,10 @@ def base256encode(n):
 bytechars = {}
 
 for line in sys.stdin:
+#    if i%2==0:
+#        question = getChinese(line.strip())
+#    else:
+#    line = line.decode("utf-8")
     line = line.strip()#.split() #bytes(line.strip(), encoding="utf-8")
     lasttoken = ' '
     for token in line:
@@ -125,21 +116,54 @@ for line in sys.stdin:
             output.write(' ')
             lasttoken = ' '
             continue
+     #   if lasttoken != ' ' and not re.match(r'[+-]?\d+$', token) and not re.match(r'[a-z]+',token,re.I):
+     #       output.write(" ")
+     #       lasttoken = ' '
+     #   if lasttoken != ' ' and re.match(r'[+-]?\d+$', token) and re.match(r'[a-z]+',lasttoken,re.I):
+     #       output.write(" ")
+     #       lasttoken = ' '
+     #   if lasttoken != ' ' and re.match(r'[+-]?\d+$', lasttoken) and re.match(r'[a-z]+',token,re.I):
+      #      output.write(" ")
+       #     lasttoken = ' '
+#        print(str(base64.b16encode(token.encode("utf-8"))))
+#        output.write(token)
+#        output.write(" ")
         if lasttoken != ' ': 
             if len(getCJK(token)) > 0 or len(getPunc(token)) > 0: 
                 output.write(" ")
                 lasttoken = ' '
         tk = (str(base64.b16encode(token.encode("utf-8")))[2:-1])
+#        output.write(" base16:")
+#        output.write(tk)
+#        output.write(" ")
         num = len(tk)/2
         for i in range(int(num)):
             if lasttoken == ' ' and i == 0: 
                 ch = str(byteVocab[str((base16decode(tk[2*i:2*i+2])))])
             else:
-                ch = str(base256encode(base16decode(tk[2*i:2*i+2])))
+                ch = str(byteVocab[str(256+(base16decode(tk[2*i:2*i+2])))])
+                #ch = str(base256encode(base16decode(tk[2*i:2*i+2])))
+#            if ch not in bytechars:
+#                bytechars[ch] = 0
+#            bytechars[ch] += 1
             output.write(ch)
+#            b256tob16[str(base256encode(base16decode(tk[2*i:2*i+2])))] = tk[2*i:2*i+2]
+#            output.write(" ")
+#        output.write((base64.b16decode(str(base64.b16encode(token.encode("utf-8")))[2:-1]).decode('utf-8')))
+#        print((base64.b16decode(str(base64.b16encode(token.encode("utf-8")))[2:-1])).decode('utf-8'))
+       # output.write(str(token))
+#        output.write(token)
+        #if len(getChinese(token)) > 0: #not re.match(r'[+-]?\d+$', token) and not re.match(r'[a-z]+',token,re.I):
         if len(getCJK(token)) > 0 or len(getPunc(token)) > 0: 
             output.write(" ")
             lasttoken = ' '
         else: lasttoken = token
+      #  if len(getChinese(token)) > 0: output.write(' ')
     output.write("\n")
     count += len(line)
+#charVocab = open("charVocab.txt", 'w')
+#for ch in bytechars:
+#    charVocab.writelines("{}\t{}\n".format(ch, bytechars[ch]))
+#table = open("b256tob16.txt", "w")
+#for i in b256tob16:
+#    table.writelines("{} {}\n".format(i, b256tob16[i]))

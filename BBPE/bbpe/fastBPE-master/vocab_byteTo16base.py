@@ -1,18 +1,4 @@
-# coding=utf-8
-# Copyright 2020 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# -*- coding: UTF-8 -*-
 import re
 import sys
 import six
@@ -29,8 +15,8 @@ Bvocab = open("../byteVocab.txt", 'r', encoding = 'utf-8')
 
 for line in Bvocab:
     tokens = line.strip().split('\t')
-    print(tokens[0])
-    print(tokens[1])
+#    print(tokens[0])
+#    print(tokens[1])
     byteVocab[tokens[1]] = tokens[0]
 
 
@@ -79,21 +65,29 @@ def base256encode(n):
 for i in range(256):
     b256tob16[str(base256encode(i))] = i
 for line in sys.stdin:
-    print(line)
+#    print(line)
     line = line.split('\t') #bytes(line.strip(), encoding="utf-8")
 #    output.writelines("{}\t".format(line[0]))
     print(line)
-    if len(getChinese(line[0])) == 0: output.writelines("##")
-    for token in line[0]:
-        if token == ' ': continue
+    #if len(getChinese(line[0])) == 0: output.writelines("##")
+    if line[0][0] == '_': line[0] = line[0][1:] 
+    if line[0][0] in byteVocab and int(byteVocab[line[0][0]]) > 255: output.writelines("##")
+    for i in range(len(line[0])):
+        token = line[0][i]
+        if token not in byteVocab: continue
+#        print(token)
         token16 = token
-        if len(getChinese(token[0])) > 0:
-            token16 =str(chr(int(byteVocab[token[0]]))) + token[1:]
+    #    if len(getChinese(token[0])) > 0:
+    #        token16 =str(chr(int(byteVocab[token[0]]))) + token[1:]
+        token256 = int(byteVocab[token]) 
+        if token256 > 255: token256-=256
+        token16 =str(chr(token256)) #+ token[1:]
+#        print(token16)
         tk = (str(base16encode((b256tob16[token16]))))
         output.writelines("{}".format(tk))
-        print(tk)
-    output.writelines("\t{}".format(str(line[1])))
-    print(line[1])
+#        print(tk)
+        if i == len(line[0]) - 1: output.writelines("\t{}".format(str(line[1])))
+#    print(line[1])
     
 
 for i in range(16):

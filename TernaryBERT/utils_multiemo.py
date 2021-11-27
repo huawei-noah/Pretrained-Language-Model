@@ -230,7 +230,7 @@ def acc_and_f1(preds, labels):
 def compute_metrics(task_name, logits, labels):
     preds = np.argmax(logits, axis=1)
     assert len(preds) == len(labels)
-    if task_name == "multiemo":
+    if 'multiemo' in task_name:
         return acc_and_f1(preds, labels)
     else:
         raise KeyError(task_name)

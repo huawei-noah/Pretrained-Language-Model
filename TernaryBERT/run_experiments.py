@@ -22,24 +22,18 @@ def main():
 
     if not os.path.exists(os.path.join(DATA_FOLDER, 'multiemo2')):
         logger.info("Downloading Multiemo data")
-        cmd = 'python3 -m scripts.download_dataset --data_dir data/multiemo2'
+        cmd = 'python3 scripts/download_dataset.py --data_dir data/multiemo2'
         run_process(cmd)
         logger.info("Downloading finished")
 
     if not os.path.exists(os.path.join(DATA_FOLDER, 'models', 'bert-base-uncased')):
         logger.info("Downloading bert-base-uncased model")
-        cmd = 'python3 -m download_bert_base'
-        run_process(cmd)
-        logger.info("Downloading finished")
-
-    if not os.path.exists(os.path.join(DATA_FOLDER, 'models', 'bert-base-uncased')):
-        logger.info("Downloading bert-base-uncased model")
-        cmd = 'python3 -m download_bert_base'
+        cmd = 'python3 download_bert_base.py'
         run_process(cmd)
         logger.info("Downloading finished")
 
     if not os.path.exists(os.path.join(DATA_FOLDER, 'models', 'bert-base-uncased', 'multiemo_en_all_sentence')):
-        cmd = 'python3 -m multiemo_fine_tune_bert '
+        cmd = 'python3 multiemo_fine_tune_bert.py '
         options = [
             '--pretrained_model', 'data/models/bert-base-uncased',
             '--data_dir', 'data/multiemo2',
@@ -51,7 +45,7 @@ def main():
         logger.info(f"Training bert-base-uncased for multiemo_en_all_sentence")
         run_process(cmd)
 
-    cmd = 'python3 -m quant_task_multiemo '
+    cmd = 'python3 quant_task_multiemo.py '
     options = [
         '--data_dir', 'data/multiemo2',
         '--model_dir ', 'data/models/bert-base-uncased',

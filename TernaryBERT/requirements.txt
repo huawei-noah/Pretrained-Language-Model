@@ -3,7 +3,7 @@ requests
 scipy
 future
 Pillow
-tensorflow~=1.14.0
+# tensorflow~=1.14.0
 numpy~=1.21.2
 pandas~=1.3.3
 scikit-learn~=1.0

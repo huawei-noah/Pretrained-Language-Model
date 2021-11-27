@@ -74,6 +74,13 @@ class DataProcessor(object):
                 lines.append(line)
             return lines
 
+    @classmethod
+    def _read_txt(cls, input_file: str) -> List[str]:
+        """Reads a tab separated value file."""
+        with open(input_file, "r", encoding='UTF-8') as f:
+            lines = f.read().splitlines()
+        return lines
+
 
 class MultiemoProcessor(DataProcessor):
     """Processor for the Multiemo data2 set"""

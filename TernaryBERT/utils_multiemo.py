@@ -6,7 +6,7 @@ from typing import List
 
 import numpy as np
 from scipy.stats import pearsonr, spearmanr
-from sklearn.metrics import matthews_corrcoef, f1_score
+from sklearn.metrics import matthews_corrcoef, f1_score, accuracy_score
 
 logger = logging.getLogger()
 
@@ -214,12 +214,12 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
 
 
 def simple_accuracy(preds, labels):
-    return (preds == labels).mean()
+    return accuracy_score(y_true=labels, y_pred=preds)
 
 
 def acc_and_f1(preds, labels):
-    acc = simple_accuracy(preds, labels)
-    f1 = f1_score(y_true=labels, y_pred=preds)
+    acc = accuracy_score(y_true=labels, y_pred=preds)
+    f1 = f1_score(y_true=labels, y_pred=preds, average='macro')
     return {
         "acc": acc,
         "f1": f1,

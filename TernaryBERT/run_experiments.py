@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 data_dir = os.path.join('data', 'multiemo2')
 
+batch_size = 16
 num_train_epochs = 3
 learning_rate = 5e-5
 weight_decay = 0.01
@@ -40,6 +41,10 @@ def main():
             '--data_dir', 'data/multiemo2',
             '--task_name', 'multiemo_en_all_sentence',
             '--output_dir', 'data/models/bert-base-uncased/multiemo_en_all_sentence',
+            '--learning_rate', str(learning_rate),
+            '--num_train_epochs', str(num_train_epochs),
+            '--weight_decay', str(weight_decay),
+            '--train_batch_size', str(batch_size),
             '--do_lower_case'
         ]
         cmd += ' '.join(options)

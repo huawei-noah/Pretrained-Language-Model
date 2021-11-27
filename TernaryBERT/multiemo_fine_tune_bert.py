@@ -21,15 +21,10 @@
 from __future__ import absolute_import, division, print_function
 
 import argparse
-import csv
-import logging
-import os
 import random
-import sys
 import time
 from datetime import timedelta
 
-import numpy as np
 import torch
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
 from tqdm import tqdm, trange
@@ -140,11 +135,11 @@ def main():
                         action='store_true',
                         help="Set this flag if you are using an uncased model.")
     parser.add_argument("--train_batch_size",
-                        default=32,
+                        default=16,
                         type=int,
                         help="Total batch size for training.")
     parser.add_argument("--eval_batch_size",
-                        default=32,
+                        default=16,
                         type=int,
                         help="Total batch size for eval.")
     parser.add_argument("--learning_rate",

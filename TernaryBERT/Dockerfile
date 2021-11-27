@@ -2,10 +2,10 @@ FROM nvidia/cuda:11.2.0-cudnn8-runtime-ubuntu20.04
 
 ENV TZ=Europe/Minsk
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN apt update && \
-    apt install --no-install-recommends -y build-essential software-properties-common && \
-    apt install --no-install-recommends -y python3.6 python3-pip python3-dev python3-setuptools python3-distutils && \
-    apt clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y build-essential software-properties-common && \
+    apt-get install --no-install-recommends -y python3.6 python3-pip python3-dev python3-setuptools python3-distutils && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

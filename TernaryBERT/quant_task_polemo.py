@@ -19,7 +19,7 @@ from transformer.modeling_quant import BertForSequenceClassification as QuantBer
 from transformer import BertTokenizer
 from transformer import BertAdam
 from transformer import BertConfig
-from utils_glue import *
+from utils_multiemo import *
 
 log_format = '%(asctime)s %(message)s'
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
@@ -175,42 +175,18 @@ def main():
         args.teacher_model = os.path.join(args.model_dir, task_name)
 
     processors = {
-        "cola": ColaProcessor,
-        "mnli": MnliProcessor,
-        "mnli-mm": MnliMismatchedProcessor,
-        "mrpc": MrpcProcessor,
-        "sst-2": Sst2Processor,
-        "sts-b": StsbProcessor,
-        "qqp": QqpProcessor,
-        "qnli": QnliProcessor,
-        "rte": RteProcessor
+        "multiemo": MultiemoProcessor
     }
 
     output_modes = {
-        "cola": "classification",
-        "mnli": "classification",
-        "mrpc": "classification",
-        "sst-2": "classification",
-        "sts-b": "regression",
-        "qqp": "classification",
-        "qnli": "classification",
-        "rte": "classification"
+        "multiemo": "classification"
     }
 
     default_params = {
-        "cola": {"max_seq_length": 64, "batch_size": 16, "eval_step": 50},
-        "mnli": {"max_seq_length": 128, "batch_size": 32, "eval_step": 1000},
-        "mrpc": {"max_seq_length": 128, "batch_size": 32, "eval_step": 200},
-        "sst-2": {"max_seq_length": 64, "batch_size": 32, "eval_step": 200},
-        "sts-b": {"max_seq_length": 128, "batch_size": 32, "eval_step": 50},
-        "qqp": {"max_seq_length": 128, "batch_size": 32, "eval_step": 1000},
-        "qnli": {"max_seq_length": 128, "batch_size": 32, "eval_step": 1000},
-        "rte": {"max_seq_length": 128, "batch_size": 32, "eval_step": 100}
+        "multiemo": {"max_seq_length": 128, "batch_size": 16, "eval_step": 50}
     }
 
-    acc_tasks = ["mnli", "mrpc", "sst-2", "qqp", "qnli", "rte"]
-    corr_tasks = ["sts-b"]
-    mcc_tasks = ["cola"]
+    acc_tasks = ["multiemo"]
 
     # Prepare devices
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -230,62 +206,43 @@ def main():
         args.max_seq_length = default_params[task_name]["max_seq_length"]
         args.eval_step = default_params[task_name]["eval_step"]
 
-    processor = processors[task_name]()
-    output_mode = output_modes[task_name]
+    if 'multiemo' in task_name:
+        _, lang, domain, kind = task_name.split('_')
+        processor = MultiemoProcessor(lang, domain, kind)
+    else:
+        raise ValueError("Task not found: %s" % task_name)
+
+    if 'multiemo' in task_name:
+        output_mode = output_modes['multiemo']
+    else:
+        raise ValueError("Task not found: %s" % task_name)
+
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
     tokenizer = BertTokenizer.from_pretrained(args.student_model, do_lower_case=True)
 
     if args.aug_train:
-        try:
-            train_file = os.path.join(processed_data_dir, 'aug_data')
-            train_features = pickle.load(open(train_file, 'rb'))
-        except:
-            train_examples = processor.get_aug_examples(data_dir)
-            train_features = convert_examples_to_features(train_examples, label_list,
-                                                          args.max_seq_length, tokenizer, output_mode)
+        train_examples = processor.get_aug_examples(data_dir)
+        train_features = convert_examples_to_features(train_examples, label_list,
+                                                      args.max_seq_length, tokenizer, output_mode)
     else:
-        try:
-            train_file = os.path.join(processed_data_dir, 'train_data')
-            train_features = pickle.load(open(train_file, 'rb'))
-        except:
-            train_examples = processor.get_train_examples(data_dir)
-            train_features = convert_examples_to_features(train_examples, label_list,
-                                                          args.max_seq_length, tokenizer, output_mode)
+        train_examples = processor.get_train_examples(data_dir)
+        train_features = convert_examples_to_features(train_examples, label_list,
+                                                      args.max_seq_length, tokenizer, output_mode)
 
     num_train_optimization_steps = int(len(train_features) / args.batch_size) * args.num_train_epochs
     train_data, _ = get_tensor_data(output_mode, train_features)
     train_sampler = RandomSampler(train_data)
     train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.batch_size)
 
-    try:
-        dev_file = train_file = os.path.join(processed_data_dir, 'dev_data')
-        eval_features = pickle.load(open(dev_file, 'rb'))
-    except:
-        eval_examples = processor.get_dev_examples(data_dir)
-        eval_features = convert_examples_to_features(eval_examples, label_list, args.max_seq_length, tokenizer,
-                                                     output_mode)
+    eval_examples = processor.get_dev_examples(data_dir)
+    eval_features = convert_examples_to_features(eval_examples, label_list, args.max_seq_length, tokenizer,
+                                                 output_mode)
 
     eval_data, eval_labels = get_tensor_data(output_mode, eval_features)
     eval_sampler = SequentialSampler(eval_data)
     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.batch_size)
-    if task_name == "mnli":
-        processor = processors["mnli-mm"]()
-        try:
-            dev_mm_file = train_file = os.path.join(processed_data_dir, 'dev-mm_data')
-            mm_eval_features = pickle.load(open(dev_mm_file, 'rb'))
-        except:
-            mm_eval_examples = processor.get_dev_examples(data_dir)
-            mm_eval_features = convert_examples_to_features(
-                mm_eval_examples, label_list, args.max_seq_length, tokenizer, output_mode)
-
-        mm_eval_data, mm_eval_labels = get_tensor_data(output_mode, mm_eval_features)
-        logger.info("  Num examples = %d", len(mm_eval_features))
-
-        mm_eval_sampler = SequentialSampler(mm_eval_data)
-        mm_eval_dataloader = DataLoader(mm_eval_data, sampler=mm_eval_sampler,
-                                        batch_size=args.batch_size)
 
     teacher_model = BertForSequenceClassification.from_pretrained(args.teacher_model)
     teacher_model.to(device)
@@ -295,27 +252,16 @@ def main():
 
     result = do_eval(teacher_model, task_name, eval_dataloader,
                      device, output_mode, eval_labels, num_labels)
-    if task_name in acc_tasks:
-        if task_name in ['sst-2', 'mnli', 'qnli', 'rte']:
-            fp32_performance = f"acc:{result['acc']}"
-        elif task_name in ['mrpc', 'qqp']:
-            fp32_performance = f"f1/acc:{result['f1']}/{result['acc']}"
-    if task_name in corr_tasks:
-        fp32_performance = f"pearson/spearmanr:{result['pearson']}/{result['spearmanr']}"
-
-    if task_name in mcc_tasks:
-        fp32_performance = f"mcc:{result['mcc']}"
-
-    if task_name == "mnli":
-        result = do_eval(teacher_model, 'mnli-mm', mm_eval_dataloader,
-                         device, output_mode, mm_eval_labels, num_labels)
-        fp32_performance += f"  mm-acc:{result['acc']}"
+    fp32_performance = f"f1/acc:{result['f1']}/{result['acc']}"
     fp32_performance = task_name + ' fp32   ' + fp32_performance
-    student_config = BertConfig.from_pretrained(args.teacher_model,
-                                                quantize_act=True,
-                                                weight_bits=args.weight_bits,
-                                                input_bits=args.input_bits,
-                                                clip_val=args.clip_val)
+
+    student_config = BertConfig.from_pretrained(
+        args.teacher_model,
+        quantize_act=True,
+        weight_bits=args.weight_bits,
+        input_bits=args.input_bits,
+        clip_val=args.clip_val
+    )
     student_model = QuantBertForSequenceClassification.from_pretrained(args.student_model, config=student_config,
                                                                        num_labels=num_labels)
     student_model.to(device)
@@ -428,43 +374,18 @@ def main():
                                                            'rep_loss': rep_loss,
                                                            'cls_loss': cls_loss}, global_step)
 
-                if task_name == 'cola':
-                    summaryWriter.add_scalar('mcc', result['mcc'], global_step)
-                elif task_name in ['sst-2', 'mnli', 'mnli-mm', 'qnli', 'rte', 'wnli']:
-                    summaryWriter.add_scalar('acc', result['acc'], global_step)
-                elif task_name in ['mrpc', 'qqp']:
-                    summaryWriter.add_scalars('performance', {'acc': result['acc'],
-                                                              'f1': result['f1'],
-                                                              'acc_and_f1': result['acc_and_f1']}, global_step)
-                else:
-                    summaryWriter.add_scalar('corr', result['corr'], global_step)
+                summaryWriter.add_scalars('performance', {'acc': result['acc'],
+                                                          'f1': result['f1'],
+                                                          'acc_and_f1': result['acc_and_f1']}, global_step)
 
                 save_model = False
 
                 if task_name in acc_tasks and result['acc'] > best_dev_acc:
-                    if task_name in ['sst-2', 'mnli', 'qnli', 'rte']:
-                        previous_best = f"acc:{result['acc']}"
-                    elif task_name in ['mrpc', 'qqp']:
-                        previous_best = f"f1/acc:{result['f1']}/{result['acc']}"
+                    previous_best = f"f1/acc:{result['f1']}/{result['acc']}"
                     best_dev_acc = result['acc']
                     save_model = True
 
-                if task_name in corr_tasks and result['corr'] > best_dev_acc:
-                    previous_best = f"pearson/spearmanr:{result['pearson']}/{result['spearmanr']}"
-                    best_dev_acc = result['corr']
-                    save_model = True
-
-                if task_name in mcc_tasks and result['mcc'] > best_dev_acc:
-                    previous_best = f"mcc:{result['mcc']}"
-                    best_dev_acc = result['mcc']
-                    save_model = True
-
                 if save_model:
-                    # Test mnli-mm
-                    if task_name == "mnli":
-                        result = do_eval(student_model, 'mnli-mm', mm_eval_dataloader,
-                                         device, output_mode, mm_eval_labels, num_labels)
-                        previous_best += f"mm-acc:{result['acc']}"
                     logger.info(fp32_performance)
                     logger.info(previous_best)
                     if args.save_fp_model:

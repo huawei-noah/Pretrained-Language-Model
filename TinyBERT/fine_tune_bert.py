@@ -63,7 +63,7 @@ def result_to_file(result, file_name):
         writer.write("")
         logger.info("***** Eval results *****")
         for key in sorted(result.keys()):
-            logger.info("  %s = %s", key, str(result[key]))
+            logger.info("%s = %s", key, str(result[key]))
             writer.write("%s = %s\n" % (key, str(result[key])))
 
 

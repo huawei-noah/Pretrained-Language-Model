@@ -168,8 +168,7 @@ def main():
     data_dir = args.data_dir
     output_dir = os.path.join(args.output_dir, task_name)
 
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
 
     if args.student_model is None:
         args.student_model = os.path.join(args.model_dir, task_name)

@@ -224,8 +224,8 @@ def main():
     # Prepare task settings
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
         raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+
+    os.makedirs(args.output_dir, exist_ok=True)
 
     task_name = args.task_name.lower()
 

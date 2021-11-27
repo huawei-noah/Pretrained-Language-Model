@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-PROJECT_FOLDER = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_FOLDER = os.path.dirname(os.path.abspath(__file__))
 DATA_FOLDER = os.path.join(PROJECT_FOLDER, 'data')
 
 log_format = '%(asctime)s %(message)s'
@@ -18,6 +18,7 @@ weight_decay = 0.01
 
 
 def main():
+    print(PROJECT_FOLDER)
     os.chdir(PROJECT_FOLDER)
 
     if not os.path.exists(os.path.join(DATA_FOLDER, 'multiemo2')):

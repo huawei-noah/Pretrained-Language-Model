@@ -3,6 +3,7 @@ import logging
 import sys
 import csv
 
+import numpy as np
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
@@ -218,7 +219,8 @@ def acc_and_f1(preds, labels):
     }
 
 
-def compute_metrics(task_name, preds, labels):
+def compute_metrics(task_name, logits, labels):
+    preds = np.argmax(logits, axis=1)
     assert len(preds) == len(labels)
     if task_name == "multiemo":
         return acc_and_f1(preds, labels)

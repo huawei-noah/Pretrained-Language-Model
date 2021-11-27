@@ -7,12 +7,15 @@ import random
 import sys
 import pickle
 import copy
+import time
+from datetime import timedelta
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss, MSELoss
+from sklearn.metrics import classification_report
+from tqdm import trange
 
 from transformer import BertForSequenceClassification, WEIGHTS_NAME, CONFIG_NAME
 from transformer.modeling_quant import BertForSequenceClassification as QuantBertForSequenceClassification
@@ -20,6 +23,7 @@ from transformer import BertTokenizer
 from transformer import BertAdam
 from transformer import BertConfig
 from utils_multiemo import *
+from utils import dictionary_to_json, result_to_text_file
 
 log_format = '%(asctime)s %(message)s'
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
@@ -45,7 +49,7 @@ def do_eval(model, task_name, eval_dataloader,
             device, output_mode, eval_labels, num_labels):
     eval_loss = 0
     nb_eval_steps = 0
-    preds = []
+    all_logits = None
 
     for _, batch_ in enumerate(eval_dataloader):
         batch_ = tuple(t.to(device) for t in batch_)
@@ -63,22 +67,19 @@ def do_eval(model, task_name, eval_dataloader,
 
         eval_loss += tmp_eval_loss.mean().item()
         nb_eval_steps += 1
-        if len(preds) == 0:
-            preds.append(logits.detach().cpu().numpy())
+
+        if all_logits is None:
+            all_logits = logits.detach().cpu().numpy()
         else:
-            preds[0] = np.append(
-                preds[0], logits.detach().cpu().numpy(), axis=0)
+            all_logits = np.append(all_logits, logits.detach().cpu().numpy(), axis=0)
 
     eval_loss = eval_loss / nb_eval_steps
 
-    preds = preds[0]
-    if output_mode == "classification":
-        preds = np.argmax(preds, axis=1)
-    elif output_mode == "regression":
-        preds = np.squeeze(preds)
-    result = compute_metrics(task_name, preds, eval_labels.numpy())
+    if output_mode == "regression":
+        all_logits = np.squeeze(all_logits)
+    result = compute_metrics(task_name, all_logits, eval_labels.numpy())
     result['eval_loss'] = eval_loss
-    return result
+    return result, all_logits
 
 
 def soft_cross_entropy(predicts, targets):
@@ -106,7 +107,6 @@ def main():
                         type=str,
                         help="The models directory.")
     parser.add_argument("--task_name",
-                        default='sst-2',
                         type=str,
                         help="The name of the task to train.")
     parser.add_argument("--output_dir",
@@ -159,10 +159,9 @@ def main():
 
     args = parser.parse_args()
     assert args.pred_distill or args.intermediate_distill, "'pred_distill' and 'intermediate_distill', at least one must be True"
-    summaryWriter = SummaryWriter(args.output_dir)
     logger.info('The args: {}'.format(args))
     task_name = args.task_name.lower()
-    data_dir = os.path.join(args.data_dir, task_name)
+    data_dir = os.path.join(args.data_dir)
     output_dir = os.path.join(args.output_dir, task_name)
     # processed_data_dir = os.path.join(args.data_dir,'preprocessed',task_name)
 
@@ -250,8 +249,9 @@ def main():
     if n_gpu > 1:
         teacher_model = torch.nn.DataParallel(teacher_model)
 
-    result = do_eval(teacher_model, task_name, eval_dataloader,
-                     device, output_mode, eval_labels, num_labels)
+    result, _ = do_eval(teacher_model, task_name, eval_dataloader,
+                        device, output_mode, eval_labels, num_labels)
+
     fp32_performance = f"f1/acc:{result['f1']}/{result['acc']}"
     fp32_performance = task_name + ' fp32   ' + fp32_performance
 
@@ -265,6 +265,8 @@ def main():
     student_model = QuantBertForSequenceClassification.from_pretrained(args.student_model, config=student_config,
                                                                        num_labels=num_labels)
     student_model.to(device)
+
+    training_start_time = time.monotonic()
 
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_features))
@@ -290,12 +292,13 @@ def main():
     global_step = 0
     best_dev_acc = 0.0
     previous_best = None
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
 
     tr_loss = 0.
     tr_att_loss = 0.
     tr_rep_loss = 0.
     tr_cls_loss = 0.
-    for epoch_ in range(int(args.num_train_epochs)):
+    for epoch_ in trange(int(args.num_train_epochs)):
         nb_tr_examples, nb_tr_steps = 0, 0
 
         for step, batch in enumerate(train_dataloader):
@@ -362,21 +365,16 @@ def main():
                 att_loss = tr_att_loss / (step + 1)
                 rep_loss = tr_rep_loss / (step + 1)
 
-                result = do_eval(student_model, task_name, eval_dataloader,
-                                 device, output_mode, eval_labels, num_labels)
+                result, _ = do_eval(student_model, task_name, eval_dataloader,
+                                    device, output_mode, eval_labels, num_labels)
+
                 result['global_step'] = global_step
                 result['cls_loss'] = cls_loss
                 result['att_loss'] = att_loss
                 result['rep_loss'] = rep_loss
                 result['loss'] = loss
-                summaryWriter.add_scalar('total_loss', loss, global_step)
-                summaryWriter.add_scalars('distill_loss', {'att_loss': att_loss,
-                                                           'rep_loss': rep_loss,
-                                                           'cls_loss': cls_loss}, global_step)
 
-                summaryWriter.add_scalars('performance', {'acc': result['acc'],
-                                                          'f1': result['f1'],
-                                                          'acc_and_f1': result['acc_and_f1']}, global_step)
+                result_to_text_file(result, output_eval_file)
 
                 save_model = False
 
@@ -406,9 +404,11 @@ def main():
                         quant_model = copy.deepcopy(model_to_save)
                         for name, module in quant_model.named_modules():
                             if hasattr(module, 'weight_quantizer'):
-                                module.weight.data = module.weight_quantizer.apply(module.weight,
-                                                                                   module.weight_clip_val,
-                                                                                   module.weight_bits, True)
+                                module.weight.data = module.weight_quantizer.apply(
+                                    module.weight,
+                                    module.weight_clip_val,
+                                    module.weight_bits, True
+                                )
 
                         output_model_file = os.path.join(output_quant_dir, WEIGHTS_NAME)
                         output_config_file = os.path.join(output_quant_dir, CONFIG_NAME)
@@ -416,6 +416,51 @@ def main():
                         torch.save(quant_model.state_dict(), output_model_file)
                         model_to_save.config.to_json_file(output_config_file)
                         tokenizer.save_vocabulary(output_quant_dir)
+
+    # Measure End Time
+    training_end_time = time.monotonic()
+
+    diff = timedelta(seconds=training_end_time - training_start_time)
+    diff_seconds = diff.total_seconds()
+
+    training_parameters = vars(args)
+    training_parameters['training_time'] = diff_seconds
+
+    output_training_params_file = os.path.join(output_dir, "training_params.json")
+    dictionary_to_json(training_parameters, output_training_params_file)
+
+    #########################
+    #       Test model      #
+    #########################
+    test_examples = processor.get_test_examples(data_dir)
+    test_features = convert_examples_to_features(test_examples, label_list, args.max_seq_length, tokenizer,
+                                                 output_mode)
+
+    test_data, test_labels = get_tensor_data(output_mode, test_features)
+    test_sampler = SequentialSampler(eval_data)
+    test_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.batch_size)
+
+    logger.info("\n***** Running evaluation on test dataset *****")
+    logger.info("  Num examples = %d", len(test_features))
+    logger.info("  Batch size = %d", args.batch_size)
+
+    eval_start_time = time.monotonic()
+    result, y_logits = do_eval(student_model, task_name, test_dataloader,
+                               device, output_mode, test_labels, num_labels)
+    eval_end_time = time.monotonic()
+
+    diff = timedelta(seconds=eval_end_time - eval_start_time)
+    diff_seconds = diff.total_seconds()
+    result['eval_time'] = diff_seconds
+    result_to_text_file(result, os.path.join(output_dir, "test_results.txt"))
+
+    y_pred = np.argmax(y_logits, axis=1)
+    print('\n\t**** Classification report ****\n')
+    print(classification_report(test_labels.numpy(), y_pred, target_names=label_list))
+
+    report = classification_report(test_labels.numpy(), y_pred, target_names=label_list, output_dict=True)
+    report['eval_time'] = diff_seconds
+    dictionary_to_json(report, os.path.join(output_dir, "test_results.json"))
 
 
 if __name__ == "__main__":

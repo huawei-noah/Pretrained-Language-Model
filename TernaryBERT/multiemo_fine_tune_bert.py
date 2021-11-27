@@ -29,11 +29,13 @@ import sys
 
 import numpy as np
 import torch
-from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler)
+from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
 from tqdm import tqdm, trange
 
 from torch.nn import CrossEntropyLoss, MSELoss
+from sklearn.metrics import classification_report
 
+from utils import result_to_text_file
 from utils_multiemo import *
 from transformer.modeling import BertForSequenceClassification
 from transformer.tokenization import BertTokenizer
@@ -49,15 +51,6 @@ fh = logging.FileHandler('debug_layer_loss.log')
 fh.setFormatter(logging.Formatter(log_format))
 logging.getLogger().addHandler(fh)
 logger = logging.getLogger()
-
-
-def result_to_file(result, file_name):
-    with open(file_name, "a") as writer:
-        writer.write("")
-        logger.info("***** Eval results *****")
-        for key in sorted(result.keys()):
-            logger.info("%s = %s", key, str(result[key]))
-            writer.write("%s = %s\n" % (key, str(result[key])))
 
 
 def get_tensor_data(output_mode, features):
@@ -78,13 +71,12 @@ def do_eval(model, task_name, eval_dataloader,
             device, output_mode, eval_labels, num_labels):
     eval_loss = 0
     nb_eval_steps = 0
-    preds = []
+    all_logits = None
 
-    for batch_ in tqdm(eval_dataloader, desc="Evaluating"):
+    for _, batch_ in enumerate(eval_dataloader):
         batch_ = tuple(t.to(device) for t in batch_)
         with torch.no_grad():
             input_ids, input_mask, segment_ids, label_ids, seq_lengths = batch_
-
             logits, _, _ = model(input_ids, segment_ids, input_mask)
 
         # create eval loss and other metric required by the task
@@ -97,23 +89,19 @@ def do_eval(model, task_name, eval_dataloader,
 
         eval_loss += tmp_eval_loss.mean().item()
         nb_eval_steps += 1
-        if len(preds) == 0:
-            preds.append(logits.detach().cpu().numpy())
+
+        if all_logits is None:
+            all_logits = logits.detach().cpu().numpy()
         else:
-            preds[0] = np.append(
-                preds[0], logits.detach().cpu().numpy(), axis=0)
+            all_logits = np.append(all_logits, logits.detach().cpu().numpy(), axis=0)
 
     eval_loss = eval_loss / nb_eval_steps
 
-    preds = preds[0]
-    if output_mode == "classification":
-        preds = np.argmax(preds, axis=1)
-    elif output_mode == "regression":
-        preds = np.squeeze(preds)
-    result = compute_metrics(task_name, preds, eval_labels.numpy())
+    if output_mode == "regression":
+        all_logits = np.squeeze(all_logits)
+    result = compute_metrics(task_name, all_logits, eval_labels.numpy())
     result['eval_loss'] = eval_loss
-
-    return result
+    return result, all_logits
 
 
 def main():
@@ -246,11 +234,17 @@ def main():
         if task_name in default_params:
             args.num_train_epoch = default_params[task_name]["num_train_epochs"]
 
-    if task_name not in processors:
+    if 'multiemo' in task_name:
+        _, lang, domain, kind = task_name.split('_')
+        processor = MultiemoProcessor(lang, domain, kind)
+    else:
         raise ValueError("Task not found: %s" % task_name)
 
-    processor = processors[task_name]()
-    output_mode = output_modes[task_name]
+    if 'multiemo' in task_name:
+        output_mode = 'classification'
+    else:
+        raise ValueError("Task not found: %s" % task_name)
+
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
@@ -284,15 +278,14 @@ def main():
 
     model = BertForSequenceClassification.from_pretrained(args.pretrained_model, num_labels=num_labels)
     model.to(device)
-
     if args.do_eval:
         logger.info("***** Running evaluation *****")
         logger.info("  Num examples = %d", len(eval_examples))
         logger.info("  Batch size = %d", args.eval_batch_size)
 
         model.eval()
-        result = do_eval(model, task_name, eval_dataloader,
-                         device, output_mode, eval_labels, num_labels)
+        result, _ = do_eval(model, task_name, eval_dataloader,
+                            device, output_mode, eval_labels, num_labels)
         logger.info("***** Eval results *****")
         for key in sorted(result.keys()):
             logger.info("  %s = %s", key, str(result[key]))
@@ -385,13 +378,13 @@ def main():
                     loss = tr_loss / (step + 1)
                     cls_loss = tr_cls_loss / (step + 1)
 
-                    result = do_eval(model, task_name, eval_dataloader,
-                                     device, output_mode, eval_labels, num_labels)
+                    result, _ = do_eval(model, task_name, eval_dataloader,
+                                        device, output_mode, eval_labels, num_labels)
                     result['global_step'] = global_step
                     result['cls_loss'] = cls_loss
                     result['loss'] = loss
 
-                    result_to_file(result, output_eval_file)
+                    result_to_text_file(result, output_eval_file)
 
                     save_model = False
 
@@ -421,6 +414,51 @@ def main():
                         tokenizer.save_vocabulary(args.output_dir)
 
                     model.train()
+
+        # Measure End Time
+        training_end_time = time.monotonic()
+
+        diff = timedelta(seconds=training_end_time - training_start_time)
+        diff_seconds = diff.total_seconds()
+
+        training_parameters = vars(args)
+        training_parameters['training_time'] = diff_seconds
+
+        output_training_params_file = os.path.join(args.output_dir, "training_params.json")
+        dictionary_to_json(training_parameters, output_training_params_file)
+
+        #########################
+        #       Test model      #
+        #########################
+        test_examples = processor.get_test_examples(args.data_dir)
+        test_features = convert_examples_to_features(test_examples, label_list, args.max_seq_length, tokenizer,
+                                                     output_mode)
+
+        test_data, test_labels = get_tensor_data(output_mode, test_features)
+        test_sampler = SequentialSampler(eval_data)
+        test_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.batch_size)
+
+        logger.info("\n***** Running evaluation on test dataset *****")
+        logger.info("  Num examples = %d", len(test_features))
+        logger.info("  Batch size = %d", args.batch_size)
+
+        eval_start_time = time.monotonic()
+        result, y_logits = do_eval(model, task_name, test_dataloader,
+                                   device, output_mode, test_labels, num_labels)
+        eval_end_time = time.monotonic()
+
+        diff = timedelta(seconds=eval_end_time - eval_start_time)
+        diff_seconds = diff.total_seconds()
+        result['eval_time'] = diff_seconds
+        result_to_text_file(result, os.path.join(args.output_dir, "test_results.txt"))
+
+        y_pred = np.argmax(y_logits, axis=1)
+        print('\n\t**** Classification report ****\n')
+        print(classification_report(y_true, y_pred, target_names=label_list))
+
+        report = classification_report(y_true, y_pred, target_names=label_list, output_dict=True)
+        report['eval_time'] = diff_seconds
+        dictionary_to_json(report, os.path.join(args.output_dir, "test_results.json"))
 
 
 if __name__ == "__main__":

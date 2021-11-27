@@ -26,6 +26,8 @@ import logging
 import os
 import random
 import sys
+import time
+from datetime import timedelta
 
 import numpy as np
 import torch
@@ -35,7 +37,7 @@ from tqdm import tqdm, trange
 from torch.nn import CrossEntropyLoss, MSELoss
 from sklearn.metrics import classification_report
 
-from utils import result_to_text_file
+from utils import result_to_text_file, dictionary_to_json
 from utils_multiemo import *
 from transformer.modeling import BertForSequenceClassification
 from transformer.tokenization import BertTokenizer
@@ -150,7 +152,7 @@ def main():
                         type=float,
                         help="The initial learning rate for Adam.")
     parser.add_argument('--weight_decay', '--wd',
-                        default=1e-4,
+                        default=0.01,
                         type=float,
                         metavar='W',
                         help='weight decay')
@@ -290,6 +292,8 @@ def main():
         for key in sorted(result.keys()):
             logger.info("  %s = %s", key, str(result[key]))
     else:
+        training_start_time = time.monotonic()
+
         logger.info("***** Running training *****")
         logger.info("  Num examples = %d", len(train_examples))
         logger.info("  Batch size = %d", args.train_batch_size)
@@ -306,7 +310,8 @@ def main():
         logger.info('Total parameters: {}'.format(size))
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+             'weight_decay': args.weight_decay},
             {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
         schedule = 'warmup_linear'
@@ -454,9 +459,9 @@ def main():
 
         y_pred = np.argmax(y_logits, axis=1)
         print('\n\t**** Classification report ****\n')
-        print(classification_report(y_true, y_pred, target_names=label_list))
+        print(classification_report(test_labels.numpy(), y_pred, target_names=label_list))
 
-        report = classification_report(y_true, y_pred, target_names=label_list, output_dict=True)
+        report = classification_report(test_labels.numpy(), y_pred, target_names=label_list, output_dict=True)
         report['eval_time'] = diff_seconds
         dictionary_to_json(report, os.path.join(args.output_dir, "test_results.json"))
 

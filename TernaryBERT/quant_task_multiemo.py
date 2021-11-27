@@ -114,6 +114,9 @@ def main():
                         type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
 
+    parser.add_argument("--do_lower_case",
+                        action='store_true',
+                        help="Set this flag if you are using an uncased model.")
     parser.add_argument("--learning_rate",
                         default=2e-5,
                         type=float,
@@ -122,6 +125,12 @@ def main():
                         default=3.0,
                         type=float,
                         help="Total number of training epochs to perform.")
+    parser.add_argument('--weight_decay', '--wd',
+                        default=0.01,
+                        type=float,
+                        metavar='W',
+                        help='weight decay')
+
     parser.add_argument('--seed',
                         type=int,
                         default=42,
@@ -161,9 +170,8 @@ def main():
     assert args.pred_distill or args.intermediate_distill, "'pred_distill' and 'intermediate_distill', at least one must be True"
     logger.info('The args: {}'.format(args))
     task_name = args.task_name.lower()
-    data_dir = os.path.join(args.data_dir)
+    data_dir = args.data_dir
     output_dir = os.path.join(args.output_dir, task_name)
-    # processed_data_dir = os.path.join(args.data_dir,'preprocessed',task_name)
 
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
@@ -219,7 +227,7 @@ def main():
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
-    tokenizer = BertTokenizer.from_pretrained(args.student_model, do_lower_case=True)
+    tokenizer = BertTokenizer.from_pretrained(args.student_model, do_lower_case=args.do_lower_case)
 
     if args.aug_train:
         train_examples = processor.get_aug_examples(data_dir)
@@ -278,16 +286,20 @@ def main():
     # Prepare optimizer
     param_optimizer = list(student_model.named_parameters())
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+         'weight_decay': args.weight_decay},
         {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
     schedule = 'warmup_linear'
-    optimizer = BertAdam(optimizer_grouped_parameters,
-                         schedule=schedule,
-                         lr=args.learning_rate,
-                         warmup=0.1,
-                         t_total=num_train_optimization_steps)
+    optimizer = BertAdam(
+        optimizer_grouped_parameters,
+        schedule=schedule,
+        lr=args.learning_rate,
+        warmup=0.1,
+        t_total=num_train_optimization_steps
+    )
     loss_mse = MSELoss()
     global_step = 0
     best_dev_acc = 0.0

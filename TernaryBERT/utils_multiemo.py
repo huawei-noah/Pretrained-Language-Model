@@ -2,6 +2,7 @@ import os
 import logging
 import sys
 import csv
+from typing import List
 
 import numpy as np
 from scipy.stats import pearsonr, spearmanr

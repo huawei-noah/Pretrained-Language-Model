@@ -46,7 +46,7 @@ def main(data_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', help='directory to save data to', type=str, default='glue_data')
+    parser.add_argument('--data_dir', help='directory to save data to', type=str, default='multiemo2')
     args = parser.parse_args()
 
     if not os.path.isdir(args.data_dir):

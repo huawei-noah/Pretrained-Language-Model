@@ -184,7 +184,7 @@ def main():
     }
 
     default_params = {
-        "multiemo": {"max_seq_length": 128, "batch_size": 16, "eval_step": 50}
+        "multiemo": {"max_seq_length": 128, "batch_size": 16}
     }
 
     acc_tasks = ["multiemo"]
@@ -205,7 +205,11 @@ def main():
         if n_gpu > 0:
             args.batch_size = int(args.batch_size * n_gpu)
         args.max_seq_length = default_params[task_name]["max_seq_length"]
-        args.eval_step = default_params[task_name]["eval_step"]
+    elif 'multiemo' in task_name:
+        args.batch_size = default_params['multiemo']["batch_size"]
+        if n_gpu > 0:
+            args.batch_size = int(args.batch_size * n_gpu)
+        args.max_seq_length = default_params['multiemo']["max_seq_length"]
 
     if 'multiemo' in task_name:
         _, lang, domain, kind = task_name.split('_')
@@ -428,7 +432,7 @@ def main():
                                                  output_mode)
 
     test_data, test_labels = get_tensor_data(output_mode, test_features)
-    test_sampler = SequentialSampler(eval_data)
+    test_sampler = SequentialSampler(test_data)
     test_dataloader = DataLoader(test_data, sampler=test_sampler, batch_size=args.batch_size)
 
     logger.info("\n***** Running evaluation on test dataset *****")

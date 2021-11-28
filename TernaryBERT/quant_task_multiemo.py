@@ -248,7 +248,7 @@ def main():
     eval_sampler = SequentialSampler(eval_data)
     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.batch_size)
 
-    teacher_model = BertForSequenceClassification.from_pretrained(args.teacher_model)
+    teacher_model = BertForSequenceClassification.from_pretrained(args.teacher_model, num_labels=num_labels)
     teacher_model.to(device)
     teacher_model.eval()
     if n_gpu > 1:

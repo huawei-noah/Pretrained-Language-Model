@@ -167,10 +167,6 @@ def main():
                         type=int,
                         default=42,
                         help="random seed for initialization")
-    parser.add_argument('--gradient_accumulation_steps',
-                        type=int,
-                        default=1,
-                        help="Number of updates steps to accumulate before performing a backward/update pass.")
 
     # added arguments
     parser.add_argument('--aug_train',
@@ -185,19 +181,8 @@ def main():
     # intermediate distillation default parameters
     default_params = {
         "multiemo": {"num_train_epochs": 3, "max_seq_length": 128},
-        "cola": {"num_train_epochs": 3, "max_seq_length": 64},
-        "mnli": {"num_train_epochs": 3, "max_seq_length": 128},
-        "mrpc": {"num_train_epochs": 3, "max_seq_length": 128},
-        "sst-2": {"num_train_epochs": 3, "max_seq_length": 64},
-        "sts-b": {"num_train_epochs": 3, "max_seq_length": 128},
-        "qqp": {"num_train_epochs": 3, "max_seq_length": 128},
-        "qnli": {"num_train_epochs": 3, "max_seq_length": 128},
-        "rte": {"num_train_epochs": 5, "max_seq_length": 128}
     }
-
-    acc_tasks = ["multiemo", "mnli", "mrpc", "sst-2", "qqp", "qnli", "rte"]
-    corr_tasks = ["sts-b"]
-    mcc_tasks = ["cola"]
+    acc_tasks = ["multiemo"]
 
     # Prepare devices
     device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
@@ -206,7 +191,6 @@ def main():
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                         datefmt='%m/%d/%Y %H:%M:%S',
                         level=logging.INFO)
-
     logger.info("device: {} n_gpu: {}".format(device, n_gpu))
 
     # Prepare seed
@@ -223,7 +207,6 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     task_name = args.task_name.lower()
-
     if task_name in default_params:
         args.max_seq_len = default_params[task_name]["max_seq_length"]
 
@@ -252,14 +235,8 @@ def main():
             train_examples = processor.get_train_examples(args.data_dir)
         else:
             train_examples = processor.get_aug_examples(args.data_dir)
-        if args.gradient_accumulation_steps < 1:
-            raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
-                args.gradient_accumulation_steps))
 
-        args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
-
-        num_train_optimization_steps = int(
-            len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
+        num_train_optimization_steps = int(len(train_examples) / args.train_batch_size) * args.num_train_epochs
 
         train_features = convert_examples_to_features(train_examples, label_list,
                                                       args.max_seq_length, tokenizer, output_mode)
@@ -295,49 +272,28 @@ def main():
         logger.info("  Num steps = %d", num_train_optimization_steps)
         if n_gpu > 1:
             model = torch.nn.DataParallel(model)
-        # Prepare optimizer
-        param_optimizer = list(model.named_parameters())
-        size = 0
-        for n, p in model.named_parameters():
-            logger.info('n: {}'.format(n))
-            size += p.nelement()
 
-        logger.info('Total parameters: {}'.format(size))
-        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-             'weight_decay': args.weight_decay},
-            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
-        schedule = 'warmup_linear'
-
-        optimizer = BertAdam(optimizer_grouped_parameters,
-                             schedule=schedule,
-                             lr=args.learning_rate,
-                             warmup=args.warmup_proportion,
-                             t_total=num_train_optimization_steps)
+        optimizer = get_optimizer(args, model, num_train_optimization_steps)
 
         # Train and evaluate
         global_step = 0
         best_dev_acc = 0.0
         output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
 
-        for epoch_ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for epoch_ in range(int(args.num_train_epochs)):
             tr_loss = 0.
             tr_cls_loss = 0.
 
             model.train()
             nb_tr_examples, nb_tr_steps = 0, 0
 
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration", ascii=True)):
+            for step, batch in enumerate(tqdm(train_dataloader, f"Epoch {epoch_ + 1}: ", ascii=True)):
                 batch = tuple(t.to(device) for t in batch)
-
                 input_ids, input_mask, segment_ids, label_ids, seq_lengths = batch
                 if input_ids.size()[0] != args.train_batch_size:
                     continue
 
                 cls_loss = 0.
-
                 logits, _, _ = model(input_ids, segment_ids, input_mask)
 
                 if output_mode == "classification":
@@ -352,68 +308,53 @@ def main():
 
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
-                if args.gradient_accumulation_steps > 1:
-                    loss = loss / args.gradient_accumulation_steps
 
                 loss.backward()
-
                 tr_loss += loss.item()
                 nb_tr_examples += label_ids.size(0)
                 nb_tr_steps += 1
 
-                if (step + 1) % args.gradient_accumulation_steps == 0:
-                    optimizer.step()
-                    optimizer.zero_grad()
-                    global_step += 1
+                optimizer.step()
+                optimizer.zero_grad()
+                global_step += 1
 
-                if (global_step + 1) % args.eval_step == 0 or (global_step + 1) == 2 or \
-                        (global_step + 1) == num_train_optimization_steps:
-                    logger.info("***** Running evaluation *****")
-                    logger.info("  Epoch = {} iter {} step".format(epoch_, global_step))
-                    logger.info("  Num examples = %d", len(eval_examples))
-                    logger.info("  Batch size = %d", args.eval_batch_size)
+            logger.info("***** Running evaluation *****")
+            logger.info("  Epoch = {} iter {} step".format(epoch_, global_step))
+            logger.info("  Num examples = %d", len(eval_examples))
+            logger.info("  Batch size = %d", args.eval_batch_size)
 
-                    model.eval()
+            model.eval()
 
-                    loss = tr_loss / (step + 1)
-                    cls_loss = tr_cls_loss / (step + 1)
+            loss = tr_loss / nb_tr_steps
+            cls_loss = tr_cls_loss / nb_tr_steps
 
-                    result, _ = do_eval(model, task_name, eval_dataloader,
-                                        device, output_mode, eval_labels, num_labels)
-                    result['global_step'] = global_step
-                    result['cls_loss'] = cls_loss
-                    result['loss'] = loss
+            result, _ = do_eval(model, task_name, eval_dataloader,
+                                device, output_mode, eval_labels, num_labels)
+            result['epoch'] = epoch_ + 1
+            result['global_step'] = global_step
+            result['cls_loss'] = cls_loss
+            result['loss'] = loss
+            result_to_text_file(result, output_eval_file)
 
-                    result_to_text_file(result, output_eval_file)
+            save_model = False
 
-                    save_model = False
+            if task_name in acc_tasks and result['acc'] > best_dev_acc:
+                best_dev_acc = result['acc']
+                save_model = True
 
-                    if task_name in acc_tasks and result['acc'] > best_dev_acc:
-                        best_dev_acc = result['acc']
-                        save_model = True
+            if save_model:
+                logger.info("***** Save model *****")
+                model_to_save = model.module if hasattr(model, 'module') else model
 
-                    if task_name in corr_tasks and result['corr'] > best_dev_acc:
-                        best_dev_acc = result['corr']
-                        save_model = True
+                model_name = WEIGHTS_NAME
+                output_model_file = os.path.join(args.output_dir, model_name)
+                output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
 
-                    if task_name in mcc_tasks and result['mcc'] > best_dev_acc:
-                        best_dev_acc = result['mcc']
-                        save_model = True
+                torch.save(model_to_save.state_dict(), output_model_file)
+                model_to_save.config.to_json_file(output_config_file)
+                tokenizer.save_vocabulary(args.output_dir)
 
-                    if save_model:
-                        logger.info("***** Save model *****")
-                        model_to_save = model.module if hasattr(model, 'module') else model
-
-                        model_name = WEIGHTS_NAME
-
-                        output_model_file = os.path.join(args.output_dir, model_name)
-                        output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
-
-                        torch.save(model_to_save.state_dict(), output_model_file)
-                        model_to_save.config.to_json_file(output_config_file)
-                        tokenizer.save_vocabulary(args.output_dir)
-
-                    model.train()
+            model.train()
 
         # Measure End Time
         training_end_time = time.monotonic()
@@ -436,13 +377,14 @@ def main():
 
         test_data, test_labels = get_tensor_data(output_mode, test_features)
         test_sampler = SequentialSampler(eval_data)
-        test_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.batch_size)
+        test_dataloader = DataLoader(eval_data, sampler=test_sampler, batch_size=args.batch_size)
 
         logger.info("\n***** Running evaluation on test dataset *****")
         logger.info("  Num examples = %d", len(test_features))
         logger.info("  Batch size = %d", args.batch_size)
 
         eval_start_time = time.monotonic()
+        model.eval()
         result, y_logits = do_eval(model, task_name, test_dataloader,
                                    device, output_mode, test_labels, num_labels)
         eval_end_time = time.monotonic()
@@ -459,6 +401,31 @@ def main():
         report = classification_report(test_labels.numpy(), y_pred, target_names=label_list, output_dict=True)
         report['eval_time'] = diff_seconds
         dictionary_to_json(report, os.path.join(args.output_dir, "test_results.json"))
+
+
+def get_optimizer(args, model, num_train_optimization_steps):
+    # Prepare optimizer
+    param_optimizer = list(model.named_parameters())
+    size = 0
+    for n, p in model.named_parameters():
+        logger.info('n: {}'.format(n))
+        size += p.nelement()
+    logger.info('Total parameters: {}'.format(size))
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+         'weight_decay': args.weight_decay},
+        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    ]
+    schedule = 'warmup_linear'
+    optimizer = BertAdam(
+        optimizer_grouped_parameters,
+        schedule=schedule,
+        lr=args.learning_rate,
+        warmup=args.warmup_proportion,
+        t_total=num_train_optimization_steps
+    )
+    return optimizer
 
 
 if __name__ == "__main__":

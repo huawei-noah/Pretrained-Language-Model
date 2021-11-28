@@ -70,7 +70,7 @@ def do_eval(model, task_name, eval_dataloader,
     nb_eval_steps = 0
     all_logits = None
 
-    for _, batch_ in enumerate(eval_dataloader):
+    for batch_ in tqdm(eval_dataloader):
         batch_ = tuple(t.to(device) for t in batch_)
         with torch.no_grad():
             input_ids, input_mask, segment_ids, label_ids, seq_lengths = batch_
@@ -377,11 +377,11 @@ def main():
 
         test_data, test_labels = get_tensor_data(output_mode, test_features)
         test_sampler = SequentialSampler(eval_data)
-        test_dataloader = DataLoader(eval_data, sampler=test_sampler, batch_size=args.batch_size)
+        test_dataloader = DataLoader(eval_data, sampler=test_sampler, batch_size=args.eval_batch_size)
 
         logger.info("\n***** Running evaluation on test dataset *****")
         logger.info("  Num examples = %d", len(test_features))
-        logger.info("  Batch size = %d", args.batch_size)
+        logger.info("  Batch size = %d", args.eval_batch_size)
 
         eval_start_time = time.monotonic()
         model.eval()

@@ -46,7 +46,7 @@ def do_eval(model, task_name, eval_dataloader,
     nb_eval_steps = 0
     all_logits = None
 
-    for _, batch_ in enumerate(eval_dataloader):
+    for batch_ in tqdm(eval_dataloader):
         batch_ = tuple(t.to(device) for t in batch_)
         with torch.no_grad():
             input_ids, input_mask, segment_ids, label_ids, seq_lengths = batch_
@@ -290,7 +290,7 @@ def main():
     for epoch_ in trange(int(args.num_train_epochs)):
         nb_tr_examples, nb_tr_steps = 0, 0
 
-        for step, batch in  enumerate(tqdm(train_dataloader, f"Epoch {epoch_ + 1}: ", ascii=True)):
+        for step, batch in enumerate(tqdm(train_dataloader, f"Epoch {epoch_ + 1}: ", ascii=True)):
             student_model.train()
             batch = tuple(t.to(device) for t in batch)
             input_ids, input_mask, segment_ids, label_ids, seq_lengths = batch
@@ -341,7 +341,6 @@ def main():
             tr_loss += loss.item()
             nb_tr_examples += label_ids.size(0)
             nb_tr_steps += 1
-
 
         logger.info("***** Running evaluation *****")
         logger.info("  {} step of {} steps".format(global_step, num_train_optimization_steps))

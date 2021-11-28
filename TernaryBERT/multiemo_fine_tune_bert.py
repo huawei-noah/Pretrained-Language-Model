@@ -377,7 +377,7 @@ def main():
 
         test_data, test_labels = get_tensor_data(output_mode, test_features)
         test_sampler = SequentialSampler(eval_data)
-        test_dataloader = DataLoader(eval_data, sampler=test_sampler, batch_size=args.eval_batch_size)
+        test_dataloader = DataLoader(test_data, sampler=test_sampler, batch_size=args.eval_batch_size)
 
         logger.info("\n***** Running evaluation on test dataset *****")
         logger.info("  Num examples = %d", len(test_features))

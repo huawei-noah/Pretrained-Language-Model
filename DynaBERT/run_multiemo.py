@@ -189,7 +189,6 @@ def train(args, train_dataset, model, tokenizer, teacher_model=None):
                     else:
                         loss = model(**inputs)[0]
 
-                    print(loss)
                     if args.n_gpu > 1:
                         loss = loss.mean()
                     if args.gradient_accumulation_steps > 1:
@@ -388,7 +387,7 @@ def compute_neuron_head_importance(args, model, tokenizer):
     eval_sampler = SequentialSampler(eval_dataset)
     eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
-    for batch in tqdm(eval_dataloader, desc="Evaluating"):
+    for batch in tqdm(eval_dataloader, desc="Evaluating for determining importance"):
         batch = tuple(t.to(args.device) for t in batch)
         input_ids, input_mask, _, label_ids = batch
         segment_ids = batch[2] if args.model_type == 'bert' else None  # RoBERTa does't use segment_ids

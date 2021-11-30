@@ -467,8 +467,6 @@ def main():
                         help="Total number of training epochs to perform.")
     parser.add_argument("--warmup_steps", default=0, type=int,
                         help="Linear warmup over warmup_steps.")
-    parser.add_argument('--logging_steps', type=int, default=50,
-                        help="Log every X updates steps.")
     parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
     parser.add_argument("--hidden_dropout_prob", default=0.1, type=float,

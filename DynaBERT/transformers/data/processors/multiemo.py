@@ -17,6 +17,8 @@
 
 import logging
 import os
+from typing import List
+
 import numpy as np
 from .utils import DataProcessor, InputExample, InputFeatures
 from ...file_utils import is_tf_available
@@ -27,15 +29,16 @@ if is_tf_available():
 logger = logging.getLogger(__name__)
 
 
-def multiemo_convert_examples_to_features(examples, tokenizer,
-                                          max_length=512,
-                                          task=None,
-                                          label_list=None,
-                                          output_mode=None,
-                                          pad_on_left=False,
-                                          pad_token=0,
-                                          pad_token_segment_id=0,
-                                          mask_padding_with_zero=True):
+def multiemo_convert_examples_to_features(
+        examples, tokenizer,
+        max_length=512,
+        task=None,
+        label_list=None,
+        output_mode=None,
+        pad_on_left=False,
+        pad_token=0,
+        pad_token_segment_id=0,
+        mask_padding_with_zero=True):
     """
     Loads a data file into a list of ``InputFeatures``
 
@@ -61,13 +64,13 @@ def multiemo_convert_examples_to_features(examples, tokenizer,
     """
 
     if task is not None:
-        _, lang, domain, kind = task_name.split('_')
+        _, lang, domain, kind = task.split('_')
         processor = MultiemoProcessor(lang, domain, kind)
         if label_list is None:
             label_list = processor.get_labels()
             logger.info("Using label list %s for task %s" % (label_list, task))
         if output_mode is None:
-            output_mode = multiemo_output_modes_output_modes[task]
+            output_mode = multiemo_output_modes[task]
             logger.info("Using output mode %s for task %s" % (output_mode, task))
 
     label_map = {label: i for i, label in enumerate(label_list)}

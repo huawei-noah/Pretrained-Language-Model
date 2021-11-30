@@ -241,8 +241,6 @@ def train(args, train_dataset, model, tokenizer, teacher_model=None):
                 current_best = sum(acc)
 
                 print("***best***{}\n".format(acc))
-                with open(output_eval_file, "a") as writer:
-                    writer.write("{}\n".format(acc))
 
                 logger.info("Saving model checkpoint to %s", args.output_dir)
                 model_to_save = model.module if hasattr(model, 'module') else model
@@ -567,6 +565,8 @@ def main():
         training_parameters['training_time'] = diff_seconds
 
         output_training_params_file = os.path.join(args.output_dir, "training_params.json")
+
+        training_parameters.pop('device')
         dictionary_to_json(training_parameters, output_training_params_file)
 
 

@@ -18,6 +18,7 @@ import csv
 import sys
 import copy
 import json
+from typing import List
 
 
 class InputExample(object):

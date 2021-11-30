@@ -8,6 +8,7 @@ from sklearn.metrics import matthews_corrcoef, f1_score
 
 logger = logging.getLogger()
 
+
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
@@ -50,7 +51,7 @@ class DataProcessor(object):
     def get_dev_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the dev set."""
         raise NotImplementedError()
-        
+
     def get_test_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the test set."""
         raise NotImplementedError()
@@ -84,7 +85,7 @@ class MrpcProcessor(DataProcessor):
         """See base class."""
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
@@ -128,7 +129,7 @@ class MnliProcessor(DataProcessor):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")),
             "dev_matched")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test_matched.tsv")), "test")
@@ -167,6 +168,7 @@ class MnliMismatchedProcessor(MnliProcessor):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev_mismatched.tsv")),
             "dev_matched")
+
     def get_test_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
@@ -186,7 +188,7 @@ class ColaProcessor(DataProcessor):
         """See base class."""
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
@@ -233,7 +235,7 @@ class Sst2Processor(DataProcessor):
         """See base class."""
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
@@ -276,7 +278,7 @@ class StsbProcessor(DataProcessor):
         """See base class."""
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
@@ -298,7 +300,7 @@ class StsbProcessor(DataProcessor):
             guid = "%s-%s" % (set_type, line[0])
             text_a = line[7]
             text_b = line[8]
-            if set_type== 'test':
+            if set_type == 'test':
                 label = None
             else:
                 label = line[-1]
@@ -319,7 +321,7 @@ class QqpProcessor(DataProcessor):
         """See base class."""
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
@@ -340,7 +342,7 @@ class QqpProcessor(DataProcessor):
                 continue
             guid = "%s-%s" % (set_type, line[0])
             try:
-                if set_type=='test':
+                if set_type == 'test':
                     text_a = line[1]
                     text_b = line[2]
                     label = None
@@ -368,7 +370,7 @@ class QnliProcessor(DataProcessor):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")),
             "dev_matched")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
@@ -388,7 +390,7 @@ class QnliProcessor(DataProcessor):
             if i == 0:
                 continue
             guid = "%s-%s" % (set_type, line[0])
-            if set_type=='test':
+            if set_type == 'test':
                 text_a = line[1]
                 text_b = line[2]
                 label = None
@@ -413,7 +415,7 @@ class RteProcessor(DataProcessor):
         """See base class."""
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
-    
+
     def get_test_examples(self, data_dir):
         return self._create_examples(
             self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
@@ -433,7 +435,7 @@ class RteProcessor(DataProcessor):
             if i == 0:
                 continue
             guid = "%s-%s" % (set_type, line[0])
-            if set_type=='test':
+            if set_type == 'test':
                 text_a = line[1]
                 text_b = line[2]
                 label = None

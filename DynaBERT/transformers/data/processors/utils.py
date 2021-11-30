@@ -19,6 +19,7 @@ import sys
 import copy
 import json
 
+
 class InputExample(object):
     """
     A single training/test example for simple sequence classification.
@@ -32,6 +33,7 @@ class InputExample(object):
         label: (Optional) string. The label of the example. This should be
         specified for train and dev examples, but not for test examples.
     """
+
     def __init__(self, guid, text_a, text_b=None, label=None):
         self.guid = guid
         self.text_a = text_a
@@ -123,3 +125,10 @@ class DataProcessor(object):
                     line = list(unicode(cell, 'utf-8') for cell in line)
                 lines.append(line)
             return lines
+
+    @classmethod
+    def _read_txt(cls, input_file: str) -> List[str]:
+        """Reads a tab separated value file."""
+        with open(input_file, "r", encoding='UTF-8') as f:
+            lines = f.read().splitlines()
+        return lines

@@ -158,7 +158,7 @@ def set_seed(args):
 
 def evaluate(args, model, tokenizer, prefix=""):
     results = {}
-    eval_dataset = load_and_cache_examples_test(args, args.task_name, tokenizer)
+    eval_dataset, _ = load_and_cache_examples_test(args, args.task_name, tokenizer)
 
     eval_output_dir = os.path.join(
         args.output_dir, args.model_type + '_' + args.width_mult + '_' + args.depth_mult + '_eval')

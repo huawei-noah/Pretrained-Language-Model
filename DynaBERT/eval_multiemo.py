@@ -311,7 +311,7 @@ def main():
                         help="the possible depths used for training, e.g., '1.' is for default")
 
     args = parser.parse_args()
-    args.model_dir = os.path.join(args.model_dir, 'best')
+    # args.model_dir = os.path.join(args.model_dir, 'best')
     device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
     args.n_gpu = torch.cuda.device_count()
     args.device = device

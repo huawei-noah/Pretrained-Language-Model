@@ -126,8 +126,8 @@ def main():
         '--model_type', 'bert',
         '--task_name', 'multiemo_en_all_sentence',
         '--data_dir', 'data/multiemo2',
-        '--model_dir', 'data/models/dynabert-finetuned/multiemo_en_all_sentence'
-        '--output_dir', 'data/models/dynabert-finetuned/multiemo_en_all_sentence'
+        '--model_dir', 'data/models/dynabert-finetuned/multiemo_en_all_sentence',
+        '--output_dir', 'data/models/dynabert-finetuned/multiemo_en_all_sentence',
         '--max_seq_length', str(128),
         '--depth_mult', '0.5'
     ]

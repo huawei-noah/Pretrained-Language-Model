@@ -435,28 +435,49 @@ def main():
     test_sampler = SequentialSampler(test_data)
     test_dataloader = DataLoader(test_data, sampler=test_sampler, batch_size=args.batch_size)
 
-    logger.info("\n***** Running evaluation on test dataset *****")
-    logger.info("  Num examples = %d", len(test_features))
-    logger.info("  Batch size = %d", args.batch_size)
+    config = BertConfig.from_pretrained(
+        output_dir,
+        quantize_act=True,
+        weight_bits=args.weight_bits,
+        input_bits=args.input_bits,
+        clip_val=args.clip_val
+    )
+    model = QuantBertForSequenceClassification.from_pretrained(output_dir, config=config, num_labels=num_labels)
 
-    eval_start_time = time.monotonic()
-    student_model.eval()
-    result, y_logits = do_eval(student_model, task_name, test_dataloader,
-                               device, output_mode, test_labels, num_labels)
-    eval_end_time = time.monotonic()
+    output_quant_dir = os.path.join(output_dir, 'quant')
+    qunat_config = BertConfig.from_pretrained(
+        output_quant_dir,
+        quantize_act=True,
+        weight_bits=args.weight_bits,
+        input_bits=args.input_bits,
+        clip_val=args.clip_val
+    )
+    quant_model = QuantBertForSequenceClassification.from_pretrained(output_quant_dir, config=qunat_config,
+                                                                     num_labels=num_labels)
 
-    diff = timedelta(seconds=eval_end_time - eval_start_time)
-    diff_seconds = diff.total_seconds()
-    result['eval_time'] = diff_seconds
-    result_to_text_file(result, os.path.join(output_dir, "test_results.txt"))
+    for m, out_dir in zip([model, quant_model], [output_dir, output_quant_dir]):
+        logger.info("\n***** Running evaluation on test dataset *****")
+        logger.info("  Num examples = %d", len(test_features))
+        logger.info("  Batch size = %d", args.batch_size)
 
-    y_pred = np.argmax(y_logits, axis=1)
-    print('\n\t**** Classification report ****\n')
-    print(classification_report(test_labels.numpy(), y_pred, target_names=label_list))
+        eval_start_time = time.monotonic()
+        m.eval()
+        result, y_logits = do_eval(m, task_name, test_dataloader,
+                                   device, output_mode, test_labels, num_labels)
+        eval_end_time = time.monotonic()
 
-    report = classification_report(test_labels.numpy(), y_pred, target_names=label_list, output_dict=True)
-    report['eval_time'] = diff_seconds
-    dictionary_to_json(report, os.path.join(output_dir, "test_results.json"))
+        diff = timedelta(seconds=eval_end_time - eval_start_time)
+        diff_seconds = diff.total_seconds()
+        result['eval_time'] = diff_seconds
+        result_to_text_file(result, os.path.join(out_dir, "test_results.txt"))
+
+        y_pred = np.argmax(y_logits, axis=1)
+        print('\n\t**** Classification report ****\n')
+        print(classification_report(test_labels.numpy(), y_pred, target_names=label_list))
+
+        report = classification_report(test_labels.numpy(), y_pred, target_names=label_list, output_dict=True)
+        report['eval_time'] = diff_seconds
+        dictionary_to_json(report, os.path.join(out_dir, "test_results.json"))
 
 
 def get_optimizer(args, num_train_optimization_steps, student_model):

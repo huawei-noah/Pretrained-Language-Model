@@ -17,6 +17,8 @@ num_train_epochs = 3
 learning_rate = 5e-5
 weight_decay = 0.01
 
+evaluate = False
+
 
 def main():
     print(PROJECT_FOLDER)
@@ -71,6 +73,21 @@ def main():
     cmd += ' '.join(options)
     logger.info(f"Training ternarybert for multiemo_en_all_sentence")
     run_process(cmd)
+
+    if evaluate:
+        cmd = 'python3 eval_quant_multiemo.py '
+        options = [
+            '--data_dir', 'data/multiemo2',
+            '--model_dir ', 'data/models/ternarybert',
+            '--task_name', 'multiemo_en_all_sentence',
+            '--output_dir', 'data/models/ternarybert'
+            '--weight_bits', str(2),
+            '--input_bits', str(8),
+            '--do_lower_case'
+        ]
+        cmd += ' '.join(options)
+        logger.info(f"Evaluating ternarybert for multiemo_en_all_sentence")
+        run_process(cmd)
 
     # cmd = f'python3 -m gather_results --task_name multiemo_en_all_sentence'
     # logger.info(f"Gathering results to csv for multiemo_en_all_sentence")

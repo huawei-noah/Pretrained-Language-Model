@@ -103,7 +103,7 @@ def gather_results(model_dir: str, task_name: str, depth_mult: float, width_mult
 
     data['parameters'] = parameters_num
     data['name'] = os.path.basename(model_dir)
-    data['model_name'] = 'dynabert_d_' + str(depth_mult) + '_w_' + str(width_mult)
+    data['model_name'] = 'Dynabert_d_' + str(depth_mult) + '_w_' + str(width_mult)
     print(data)
     return data
 

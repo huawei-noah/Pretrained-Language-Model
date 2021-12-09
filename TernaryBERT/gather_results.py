@@ -11,7 +11,7 @@ from utils_multiemo import MultiemoProcessor
 
 PROJECT_FOLDER = os.path.dirname(os.path.abspath(__file__))
 DATA_FOLDER = os.path.join(PROJECT_FOLDER, 'data')
-MODELS_FOLDER = os.path.join(DATA_FOLDER, 'models', 'bert-of-theseus')
+MODELS_FOLDER = os.path.join(DATA_FOLDER, 'models', 'ternarybert')
 
 
 def main():
@@ -49,7 +49,7 @@ def get_immediate_subdirectories(a_dir):
 def gather_results(model_dir: str, task_name: str) -> Dict[str, Any]:
     quant_model_dir = os.path.join(model_dir, 'quant')
 
-    with open(os.path.join(quant_model_dir, 'training_params.json')) as json_file:
+    with open(os.path.join(model_dir, 'training_params.json')) as json_file:
         training_data_dict = json.load(json_file)
 
     with open(os.path.join(quant_model_dir, 'test_results.json')) as json_file:

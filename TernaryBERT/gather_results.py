@@ -36,7 +36,7 @@ def main():
 
     df = pd.DataFrame(data)
     cols = df.columns.tolist()
-    cols = cols[-1:] + cols[:-1]
+    cols = cols[-2:] + cols[:-2]
     df = df[cols]
     df.to_csv(os.path.join(DATA_FOLDER, 'results-ternarybert-' + task_name + '.csv'), index=False)
 

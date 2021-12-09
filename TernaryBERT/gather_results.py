@@ -93,6 +93,7 @@ def gather_results(model_dir: str, task_name: str) -> Dict[str, Any]:
 
     data['parameters'] = parameters_num
     data['name'] = os.path.basename(model_dir)
+    data['model_name'] = 'TernaryBERT'
     print(data)
 
     return data

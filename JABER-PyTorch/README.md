@@ -31,7 +31,7 @@ pip install -r envs/requirements.txt
 
 ## Download Dependencies
 
-1. Download the pretrained model from [here](https://huggingface.co/huawei-noah/JABER) and then place it under 
+1. Download the pretrained model from [here](todo/link/to/model) and then place it under 
 `JABER-PyTorch/pretrained_models/`. 
   
 2. Follow the instructions to download the ALUE datasets from 
@@ -52,6 +52,11 @@ the correct train/dev/test split of `MDD` task.
       d. Create a file named `JABER-PyTorch/raw_datasets/mq2q.dev.tsv` where each line 
       contains one sample as follow: `lbl\tquestion_1\tquestion_2\n` (See the toy file 
       `JABER-PyTorch/raw_datasets/toy.mq2q.dev.tsv`)
+
+## Download Model
+
+* The model weights are expected to be made publicly available by 
+the end of January 2022.
 
 ## Process Data     
 

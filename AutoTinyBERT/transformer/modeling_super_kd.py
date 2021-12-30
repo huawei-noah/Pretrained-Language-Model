@@ -1,7 +1,7 @@
 # coding=utf-8
 # 2021.12.30-Changed for SuperPLM modeling
 #      Huawei Technologies Co., Ltd. <yinyichun@huawei.com>
-# Copyright 2020 Huawei Technologies Co., Ltd.
+# Copyright 2021 Huawei Technologies Co., Ltd.
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #

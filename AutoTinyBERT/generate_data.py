@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors, The HuggingFace Inc. team and Huawei Noah's Ark Lab.
+# 2019.12.2-Changed for data preprocessor
+#      Huawei Technologies Co., Ltd. <yinyichun@huawei.com>
+# Copyright 2020 Huawei Technologies Co., Ltd.
+# Copyright 2018 The Google AI Language Team Authors, The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

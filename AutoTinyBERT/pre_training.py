@@ -1,4 +1,7 @@
 # coding: utf-8
+# 2021.12.30-Changed for pretraining
+#      Huawei Technologies Co., Ltd. <yinyichun@huawei.com>
+# Copyright 2021 Huawei Technologies Co., Ltd.
 # Copyright 2019 Sinovation Ventures AI Institute
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

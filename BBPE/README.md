@@ -103,12 +103,12 @@ The file vocab_bbpe.txt is the final BBPE vocabulary which could be used in our 
 import tokenization
 
 tokenizer = tokenization.FullTokenizer(
-      vocab_file=vocab_file, do_lower_case=False, CJK_tokenize=True)
+      vocab_file=vocab_file, do_lower_case=False)
 
 tokens = tokenizer.tokenize(line)
 ```
 
-* the vocab_file is the BBPE vocabulary, do_lower_case is a boolean variable (the input text will be converted into lower-case character if it is set to be true) and CJK_tokenizer is also a boolean variable. If it is False, we will insert a whitespace before and after each input CJK (i.e., Chinese, Japanese and Korean) character in the text before the tokenization. As such, each output token will contain at most one CJK character. If it is True, then we feed the original text to the tokenizer and each output token could contain one or more CJK characters (e.g., E58D97E58C97 which corresponds to "南北"). 
+* the vocab_file is the BBPE vocabulary, do_lower_case is a boolean variable (the input text will be converted into lower-case character if it is set to be true). 
 
 * tokenization.printable_text_byte(x) could convert a UTF-8 code in hexadecimal digits of the subword such as 426168617361 into its corresponding raw text, in this example, the correspondig raw text is Bahasa. Thus, the function could be used to check the corresponding raw text of the tokenization results. 
 

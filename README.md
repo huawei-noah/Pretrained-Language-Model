@@ -17,3 +17,4 @@ This repository provides the latest pretrained language models and its related o
 * [HyperText](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/HyperText) is an efficient text classification model based on hyperbolic geometry theories.
 * [BinaryBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/BinaryBERT) is a weights binarization method using ternary weight splitting for BERT model, developed under PyTorch.
 * [AutoTinyBERT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/AutoTinyBERT) provides a model zoo that can meet different latency requirements.
+* [PanGu-Bot](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/PanGu-Bot) is a Chinese pre-trained open-domain dialog model build based on the GPU implementation of [PanGu-α](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/PanGu-α).

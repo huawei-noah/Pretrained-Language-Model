@@ -1,4 +1,4 @@
-Coming soon.
+The code and models will be released soon.
 
 ## Citation
 
@@ -12,3 +12,4 @@ If you find this repo helpful for your research, please cite:
   year      = {2022}
 }
 ```
+

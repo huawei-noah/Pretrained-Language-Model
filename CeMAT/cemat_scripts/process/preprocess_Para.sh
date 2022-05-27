@@ -8,9 +8,10 @@ mkdir -p ${OUTPATH}
 mkdir -p ${DEST}
 
 N_THREADS=8
-# need
+# if need
 pip install jieba
 
+# BPE path
 FASTBPE_DIR=
 FASTBPE=
 BPEROOT=
@@ -27,7 +28,6 @@ NORMALIZE_ROMANIAN=$MOSES/scripts/tokenizer/ro/normalise-romanian.py
 REMOVE_DIACRITICS=$MOSES/scripts/tokenizer/ro/remove-diacritics.py
 JA_SCRIPT=$MOSES/scripts/tokenizer/ja/kytea.py
 JA_MODEL=$MOSES/scripts/tokenizer/ja/ja-0.4.7-1.mod
-
 
 # BPE / vocab files
 BPE_CODES=$MODEL/codes
@@ -59,9 +59,9 @@ do
   do
       for lang in $SRC $TGT;
       do
-          Data_TRAIN=$DATA/$split.$lang
-          Data_TRAIN_TOK=$OUTPATH/$split.tok.$lang
-          Data_TRAIN_BPE=$OUTPATH/$split.spm.$lang
+          Data_TRAIN=$DATA/${split}.${SRC}-${TGT}.${lang}
+          Data_TRAIN_TOK=$OUTPATH/${split}.${SRC}-${TGT}.tok.${lang}
+          Data_TRAIN_BPE=$OUTPATH/${split}.${SRC}-${TGT}.spm.${lang}
           echo $Data_TRAIN "TOKENIZER:====>>" $Data_TRAIN_TOK
           if [ "$lang" == "ro" ]; then
               cat $Data_TRAIN | perl $NORM_PUNC -l $lang | perl $REM_NON_PRINT_CHAR | perl $NORMALIZE_ROMANIAN | perl $REMOVE_DIACRITICS | perl $TOKENIZER -l $lang -a -threads $N_THREADS > $Data_TRAIN_TOK
@@ -69,7 +69,7 @@ do
               cat $Data_TRAIN | perl $NORM_PUNC -l $lang | perl $REM_NON_PRINT_CHAR | python ${JA_SCRIPT} -m ${JA_MODEL}             > $Data_TRAIN_TOK
           elif [ "$lang" == "zh" ]; then
               cat $Data_TRAIN | perl $NORM_PUNC -l $lang | perl $REM_NON_PRINT_CHAR | python -m jieba -d                             > $Data_TRAIN_TOK
-da        else
+          else
               cat $Data_TRAIN | perl $NORM_PUNC -l $lang | perl $REM_NON_PRINT_CHAR | perl $TOKENIZER -l $lang -a -threads $N_THREADS > $Data_TRAIN_TOK
           fi
 
@@ -78,14 +78,14 @@ da        else
       done
       if [ "$split" == "train" ]; then
           echo "clean by ratio."
-          perl $CLEAN -ratio 1.5 $OUTPATH/$split.spm $SRC $TGT $OUTPATH/$split.spm.clean 1 250
+          perl $CLEAN -ratio 1.5 $OUTPATH/${split}.${SRC}-${TGT}.spm $SRC $TGT $OUTPATH/${split}.${SRC}-${TGT}.spm.clean 1 250
       fi
   done
 
 #  fairseq-preprocess \
 #    --source-lang ${SRC} \
 #    --target-lang ${TGT} \
-#    --trainpref ${OUTPATH}/train.spm.clean \
+#    --trainpref ${OUTPATH}/train.${SRC}-${TGT}.spm.clean \
 #    --validpref ${OUTPATH}/valid.spm \
 #    --testpref ${OUTPATH}/test.spm \
 #    --destdir ${DEST}/ \
@@ -95,6 +95,3 @@ da        else
 #    --tgtdict FULL_VOCAB \
 #    --workers 70
 done
-
-
-

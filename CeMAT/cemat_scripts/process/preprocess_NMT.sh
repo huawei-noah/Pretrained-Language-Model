@@ -9,7 +9,7 @@ mkdir -p ${OUTPATH}
 mkdir -p ${DEST}
 
 N_THREADS=8
-# need
+# if need
 pip install jieba
 
 FASTBPE_DIR=
@@ -29,11 +29,9 @@ REMOVE_DIACRITICS=$MOSES/scripts/tokenizer/ro/remove-diacritics.py
 JA_SCRIPT=$MOSES/scripts/tokenizer/ja/kytea.py
 JA_MODEL=$MOSES/scripts/tokenizer/ja/ja-0.4.7-1.mod
 
-
 # BPE / vocab files
 BPE_CODES=$MODEL/codes
 FULL_VOCAB=$MODEL/vocab
-
 
 for split in "train" "valid" "test";
 do
@@ -62,9 +60,6 @@ do
     fi
 done
 
-
-
-
 #Binarize the dataset
 fairseq-preprocess \
   --source-lang ${SRC} \
@@ -78,6 +73,3 @@ fairseq-preprocess \
   --srcdict $FULL_VOCAB \
   --tgtdict $FULL_VOCAB \
   --workers 70
-
-
-

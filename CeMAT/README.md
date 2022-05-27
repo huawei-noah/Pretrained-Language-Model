@@ -4,7 +4,7 @@ This repository contains code for the following paper:
 
 >Pengfei Li, Liangyou Li, Meng Zhang, Minghao Wu, Qun Liu.  **Universal Conditional Masked Language Pre-training for Neural Machine Translation**. In ACL2022 main conference paper.
 
-This is a reimplementation based on [fairseq](https://github.com/facebookresearch/fairseq) and [Mask-Predict](https://github.com/facebookresearch/Mask-Predict) (finetune for Non-autoregressive neural machine translation ) which should reproduce reasonable results. 
+This is a reimplementation based on [fairseq](https://github.com/facebookresearch/fairseq) and [Mask-Predict](https://github.com/facebookresearch/Mask-Predict) (for Non-autoregressive neural machine translation ) which should reproduce reasonable results. 
 
 ### Requirements
 
@@ -15,30 +15,34 @@ This is a reimplementation based on [fairseq](https://github.com/facebookresearc
 - fastBPE (for BPE codes)
 - Moses (for tokenization)
 - Apex (for fp16 training)
-- kytea(for Japanese)
-- jieba(for Chinese)
+- kytea(for Japanese tokenization)
+- jieba(for Chinese tokenization)
 
-The pipeline contains two steps: Pre-train and Fine-tune. 
+The pipeline contains two steps: Pre-training and fine-tuning.
 
-### Pre-training
+* [Pre-training](#1)
+ * [Fine-tuning(Autoregressive NMT)](#2.1)
+ * [Fine-tuning(Non-autoregressive NMT)](#2.2)
+
+<h2 id="1">Pre-training</h2>
 
 You can simply ignore the current step if you directly download the pre-trained model and vocab we provide.
 
 #### 1. Prepare Data
 
-We use the bilingual and monolingual corpus for pre-training. where we use bilingual data in 32 languages provided by [mRASP](https://github.com/linzehui/mRASP), and the monolingual corpus can be downloaded [news-crawl](https://data.statmt.org/news-crawl/). 
+We use the bilingual and monolingual corpus for pre-training. where we use bilingual data in 32 languages provided by [mRASP](https://github.com/linzehui/mRASP), and the monolingual corpus can be downloaded from [news-crawl](https://data.statmt.org/news-crawl/). 
 
 #### 2. Tokenization，Learn and apply BPE
 
-You can simply ignore the current step if you directly download the data and vocab (in BPE format) we provide.
+You can simply ignore the current step if you directly download the data and vocab we provide.
 
 Special tokenization for Romanian, Chinese and Japanese, we directly use the Vocab and BPE Code provided by mRASP. 
 
 ```bash
 # bilingual
-bash ${PROJECT_ROOT}/process/preprocess_Para.sh
+bash ${PROJECT_ROOT}/cemat_scripts/process/preprocess_Para.sh
 # monolingual
-bash ${PROJECT_ROOT}/process/preprocess_Mono.sh
+bash ${PROJECT_ROOT}/cemat_scripts/process/preprocess_Mono.sh
 ```
 
 if you want to use you own code, should  learn your own BPE code before applying BPE, and get vocab file base on subword data.
@@ -76,7 +80,7 @@ DEST=
 fairseq-preprocess \
   --source-lang ${SRC} \
   --target-lang ${TGT} \
-  --trainpref ${OUTPATH}/train.spm.clean \
+  --trainpref ${OUTPATH}/train.${SRC}-${TGT}.spm.clean \
   --validpref ${OUTPATH}/valid.spm \
   --testpref ${OUTPATH}/test.spm \
   --destdir ${DEST}/ \
@@ -143,7 +147,7 @@ bash ${PROJECT_ROOT}/CeMAT_plugins/task_pt_cemat.sh
 
 You can modify the configs to choose the model architecture or dataset used.
 
-### Fine-tuning(Autoregressive NMT)
+<h2 id="2.1">Fine-tuning(Autoregressive NMT)</h2>
 
 #### 1. Preprocess and binarize data
 
@@ -164,7 +168,7 @@ bash ${PROJECT_ROOT}/CeMAT_plugins/task_NMT_cemat.sh
 bash ${PROJECT_ROOT}/CeMAT_plugins/task_infer_nmt.sh
 ```
 
-### Fine-tuning(Non-autoregressive NMT)
+<h2 id="2.2">Fine-tuning(Non-autoregressive NMT)</h2>
 
 #### 1. Preprocess and binarize data
 

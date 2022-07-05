@@ -1,0 +1,4 @@
+mmcv
+timm
+torch
+torchvision

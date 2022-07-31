@@ -1,0 +1,17 @@
+model:
+  visual:
+    type: VisionTransformer
+    input_resolution: 224
+    layers: 24
+    width: 1024
+    patch_size: 14
+    output_dim: 256
+  text:
+    type: TextTransformer
+    context_length: 32
+    vocab_size: 21128
+    width: 768
+    heads: 12
+    layers: 12
+    output_dim: 256
+eval: filip

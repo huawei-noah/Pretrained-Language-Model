@@ -38,6 +38,10 @@ Code for paper _“Wukong: 100 Million Large-scale Chinese Cross-modal Pre-train
 └── utils.py
 ```
 
+## Download models
+
+Benchmark of our pretrained multi-modality models can be found in [Noah-Wukong Benchmark](https://wukong-dataset.github.io/wukong-dataset/benchmark.html)
+
 ## Evaluate on ImageNet
 
 Below is an example for evaluating using Wukong_ViT-L model.

@@ -1,0 +1,19 @@
+model:
+  visual:
+    type: VisionTransformer
+    input_resolution: 224
+    layers: 12
+    width: 768
+    patch_size: 32
+    output_dim: 512
+    return_full_embed: False
+  text:
+    type: TextTransformer
+    context_length: 32
+    vocab_size: 21128
+    width: 512
+    heads: 8
+    layers: 12
+    output_dim: 512
+    return_full_embed: False
+eval: clip

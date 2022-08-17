@@ -20,3 +20,4 @@ This repository provides the latest pretrained language models and its related o
 * [PanGu-Bot](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/PanGu-Bot) is a Chinese pre-trained open-domain dialog model build based on the GPU implementation of [PanGu-α](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/PanGu-α).
 * [CeMAT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/CeMAT) is a universal sequence-to-sequence multi-lingual pre-training language model for both autoregressive and non-autoregressive neural machine translation tasks.
 * [Noah_WuKong](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/Noah_WuKong) is a large-scale Chinese vision-language dataset and a group of benchmarking models trained on it.
+* [Noah_WuKong-MindSpore](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/Noah_Wukong-MindSpore) is a MindSpore version of Noah_WuKong.

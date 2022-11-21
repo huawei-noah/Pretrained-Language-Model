@@ -189,6 +189,22 @@ bash ${PROJECT_ROOT}/CeMAT_maskPredict/task_NAT_cemat.sh
 bash ${PROJECT_ROOT}/CeMAT_maskPredict/task_infer_nat.sh
 ```
 
+## Data and Pre-trained Model
+
+#### Dataset
+| Dataset                                                      |
+| ------------------------------------------------------------ |
+| [Aligned Dicts](https://drive.google.com/drive/folders/1zwHQnMa_a3kD0P8Gg1okn20YSzBj9hyQ?usp=sharing) |
+| [Vocab](https://drive.google.com/drive/folders/156ieNoMj_FspdbMbgBYfuzuvaEIwQblq?usp=share_link) |
+
+#### Models
+We release Our pre-trained models and NMT models on special bilingual pairs.
+| Language    | Model                                                        |
+| ----------- | ------------------------------------------------------------ |
+| Pre-trained | [model](https://drive.google.com/drive/folders/1mZDCt8oH4v-jgXf8J291oTLr_7-Be_Gj?usp=sharing) |
+
+
+
 ## License
 
 CeMAT is MIT License, however, there is one exception that needs to be noted that the license of CeMAT_maskPredict(for non-autoregressive NMT) is CC-BY-NC 4.0, which is limited by the license of [MASK-PREDICT](https://github.com/facebookresearch/Mask-Predict). The license applies to the pre-trained models as well.

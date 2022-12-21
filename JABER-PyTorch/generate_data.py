@@ -4,10 +4,10 @@
 
 # Copyright 2021 Huawei Technologies Co., Ltd.
 
-import sys
+import sys, re, json, argparse
 sys.path.insert(0,'..')
 import warnings, locale, random, shutil, os, pickle, copy
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 import pandas as pd
 from tqdm import tqdm
@@ -16,7 +16,7 @@ import numpy as np
 
 import tokenizationBBPE as tokenization
 from compute_metrics import alue_compute_metrics as compute_metrics
-from eval_squad import *
+# from eval_squad import *
 
 from difflib import get_close_matches
 from sacrebleu import corpus_bleu
@@ -865,7 +865,7 @@ def main():
     args = parser.parse_args()
 
     for task_name in TASK_TYPE.keys():
-        if task_name != "XNLI": continue#not in ["QA", "QG", "TS"]: continue
+        # if task_name != "XNLI": continue#not in ["QA", "QG", "TS"]: continue
         print(args.model_name, task_name)
         data_processor = DataProcessor(task_name, args.model_name)
         if data_processor.task_type == "gen" and not data_processor.is_gen: continue

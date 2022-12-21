@@ -9,11 +9,14 @@
 
 <!-- -------------------------------------------------------------------------------- -->
 
-JABER (Junior Arabic BERt) is a 12-layer Arabic pretrained Language Model. 
-We only provide fine-tuning code for sentence classification tasks, 
+* JABER (Junior Arabic BERt) is a 12-layer Arabic pretrained Language Model. 
+We provide fine-tuning code for sentence classification tasks, 
 which will allow you reproduce the test set submission that obtained rank one
  on [ALUE leaderboard](https://www.alue.org/leaderboard) at `01/09/2021`. 
 
+* We also provide source code for fine tuning and models weights for `T5` models on ALUE
+and some generative tasks. 
+ 
 ## Requirements
 We recommend to create a conda environment 
 
@@ -29,19 +32,60 @@ conda install pytorch==1.5.1 torchvision==0.6.1 cudatoolkit=10.1 -c pytorch
 pip install -r envs/requirements.txt
 ```
 
-## Download Dependencies
+## Downloads
+ 
+### Models
 
-1. Download the pretrained model from [here](todo/link/to/model) and then place it under 
-`JABER-PyTorch/pretrained_models/`. 
+* We provide pretrained models for:
+    1. [JABER](https://huggingface.co/huawei-noah/JABER) Arabic BERT-base model.
+    2. [AT5S](https://huggingface.co/huawei-noah/AT5S) Arabic T5-small model.
+    3. [AT5B](https://huggingface.co/huawei-noah/AT5B) Arabic T5-base model.
+    4. **(coming soon) Char-JABER** Arabic BERT-base model with Character level embeddings.
+    5. **(coming soon) SABER** Arabic BERT-large model.
+    
+* Place all downloaded models under `JABER-PyTorch/pretrained_models/` 
+
+### External Modules
+
+* For some necessary pre-processings we refer you to the ArabBERT code-base: https://github.com/aub-mind/arabert. In this regards, you can follow the steps given below: 
+    1. Download the [preprocess.py](https://github.com/aub-mind/arabert/blob/master/preprocess.py). 
+    2. Add the file under `/JABER-PyTorch`
+    3. Comment the `ArabertPreprocessor` class in `generate_data.py`.
+    4. Add `from preprocess import ArabertPreprocessor` in `generate_data.py`.
+
+
+* To experiment on `EMD` dataset:
+    1. Download [ArabicEmpatheticDialogues.py](https://github.com/aub-mind/Arabic-Empathetic-Chatbot/blob/master/model/ArabicEmpatheticDialogues.py)
+    2. Add the file under `/JABER-PyTorch`
+    3. Comment [line 25](https://github.com/aub-mind/Arabic-Empathetic-Chatbot/blob/b73f9b1151c26392bf45a6454b85283abb444300/model/ArabicEmpatheticDialogues.py#L25)
+    4. Replace lines [80](https://github.com/aub-mind/Arabic-Empathetic-Chatbot/blob/b73f9b1151c26392bf45a6454b85283abb444300/model/ArabicEmpatheticDialogues.py#L80) [81](https://github.com/aub-mind/Arabic-Empathetic-Chatbot/blob/b73f9b1151c26392bf45a6454b85283abb444300/model/ArabicEmpatheticDialogues.py#L81)
+    by:
+ 
+ ```
+"emotion": arabert_prep.preprocess(row[0]),
+"context": arabert_prep.preprocess(row[1]),
+-> 
+"emotion": row[0],
+"context": row[1],
+```
+
+* To evaluate on `QA` task:
+    1. Download [eval_squad.py](https://github.com/UBC-NLP/araT5/blob/main/examples/eval_squad.py)
+    2. Add the file under `/JABER-PyTorch`
+
+* Please note that, our code will still run if you don't do the aforementioned step (the code will print a Warning)
+but it will not produce the expected input data. 
+
+### ALUE Data Download
   
-2. Follow the instructions to download the ALUE datasets from 
+1. Follow the instructions to download the ALUE datasets from 
 [their official website](https://www.alue.org/tasks), and then place them under
 `JABER-PyTorch/raw_datasets/`.
  
-3. You may need to contact the authors of [ALUE](https://github.com/Alue-Benchmark/alue_baselines) in order to obtain
+2. You may need to contact the authors of [ALUE](https://github.com/Alue-Benchmark/alue_baselines) in order to obtain
 the correct train/dev/test split of `MDD` task.
 
-4. You need to provide your own dev set for `MQ2Q` task, please follow these instructions:
+3. You need to provide your own dev set for `MQ2Q` task, please follow these instructions:
       
       a. Download the English `QQP` dataset from [GLUE website](https://gluebenchmark.com/tasks).
       
@@ -53,77 +97,75 @@ the correct train/dev/test split of `MDD` task.
       contains one sample as follow: `lbl\tquestion_1\tquestion_2\n` (See the toy file 
       `JABER-PyTorch/raw_datasets/toy.mq2q.dev.tsv`)
 
-## Download Model
+### Generative Tasks Data Download
 
-* The model weights are expected to be made publicly available by 
-the end of January 2022.
+* Download the dataset for `QA` and `QG` tasks from:
+    * [SQuAD_translate-train_squad.translate.train.en-ar.json](https://console.cloud.google.com/storage/browser/_details/xtreme_translations/SQuAD/translate-train/squad.translate.train.en-ar.json;tab=live_object)
+    * [arcd.json](https://raw.githubusercontent.com/husseinmozannar/SOQAL/master/data/arcd.json)
+    * [dev-context-ar-question-ar.json,test-context-ar-question-ar.json](https://dl.fbaipublicfiles.com/MLQA/MLQA_V1.zip)
+    * [tydiqa.goldp.ar.dev.json](https://storage.googleapis.com/tydiqa/v1.1/tydiqa-goldp-v1.1-dev.json) (extract only arabic data)
+    * [tydiqa.goldp.ar.train.json](https://storage.googleapis.com/tydiqa/v1.1/tydiqa-goldp-v1.1-train.json) (extract only arabic data)
 
+    and place them in `JABER-PyTorch/raw_datasets/QA/`
+
+* Download the dataset for `TS` from:
+    * [WikiLingua.pkl](https://drive.google.com/drive/folders/1PFvXUOsW_KSEzFm5ixB8J8BDB8zRRfHW?usp=sharing)
+    * [EASC](https://sourceforge.net/projects/easc-corpus/files/EASC/EASC.zip/download)
+    
+    and place them in `JABER-PyTorch/raw_datasets/TS/`
+    
 ## Process Data     
 
-* For some necessary pre-processings we refer you to the ArabBERT code-base: https://github.com/aub-mind/arabert. In this regards, you can follow the steps given below: 
-    1. Download the [preprocess.py](https://github.com/aub-mind/arabert/blob/master/preprocess.py). 
-    2. Add the file under `/JABER-PyTorch`
-    3. Comment the `ArabertPreprocessor` class in `generate_data.py`.
-    4. Add `from preprocess import ArabertPreprocessor` in `generate_data.py`.
-
-
-* Please note that, our code will still run if you don't do the aforementioned step (the code will print a Warning)
-but it will not produce the expected input data. 
-        
-
+* We support the following tasks:
+    * Classification: MDD, XNLI, OHSD, OOLD, FID, MQ2Q
+    * Regression: SVREG
+    * Muli-label Classification: SEC
+    * NER: ANERCorp
+    * Text2Text (generative for T5 only): TS, QA, QG, EMD
+    
 * Run this command to process ALUE datasets:
  
 ```
+export MODEL_NAME=JABER # or AT5S, AT5B
 cd JABER-PyTorch
-python generate_data.py --mode train 
+python generate_data.py --mode parse_raw --model_name $MODEL_NAME
 ```
 
-* Please check that directory\file names match those in `process_alue()`  method in 
-`generate_data.py`.
+## FineTuning 
 
-## ALUE FineTuning 
+* Run the following command to fine tune on a given task:
 
-* The following command will finetune **JABER** 5 times for a given ALUE task 
-(FID in this demo):
+```
+export CUDA_VISIBLE_DEVICES="0"
 
-```bash
-#export CUDA_VISIBLE_DEVICES=0 # the ID of GPU to run the experiments on
-export TASK=fid # mq2q | oold | ohsd | svreg | sec  | fid  | xnli | mdd
-bash run_alue.sh $TASK
+export MODEL_NAME="JABER" # or AT5S, AT5B 
+export TASK_NAME="SVREG" # any of the 8 ALUE tasks or 4 genrative task (for T5 models only)
+
+
+export BS="32" # set it to the best HP from the appendix of the EMNLP paper 
+export DR="0.1" # set it to the best HP from the appendix of the EMNLP paper
+export LR="2e-05" # set it to the best HP from the appendix of the EMNLP paper
+
+bash run_alue.sh $MODEL_NAME $TASK_NAME $BS $DR $LR
 ```
 
-* The above code will automatically run `run_alue.py` five times for each task
- using different random seeds (`--seed -1`). 
+* To reproduce our the ALUE test submission you need to:
+    1. For each of the ALUE 8 tasks, run the above command 5 times (random seeds is 
+    automatically set by `--seed -1`). Don't forget to set the best HP.
+    2. Run the following command to generate the `.tsv` test sets submission 
+ to [ALUE leaderboard](https://www.alue.org/leaderboard):
  
-* To reproduce our test submission you need to finetune **JABER** on all tasks 
-(40 experiments in total). 
- 
-* This would generate 40 `./alue_predictions/jaber.{TASK}.{max_dev_score}.pkl` files,
- which each contains the test set predictions for the best performing checkpoint
-  on its respective dev set. 
-  
-* Here are the hyper-parameters we used to generate test files for 
-[ALUE leaderboard](https://www.alue.org/leaderboard):
-
-| hp                  | MQ2Q | OOLD | OHSD | SVREG | SEC  | FID  | XNLI | MDD  |
-|---------------------|------|------|------|-------|------|------|------|------|
-| batch_size          | 64   | 128  | 32   | 8     | 16   | 32   | 16   | 32   |
-| lr                  | 2e-5 | 2e-5 | 7e-6 | 2e-5  | 2e-5 | 2e-5 | 2e-5 | 2e-5 |
-| hidden_dropout_prob | 0.3  | 0.2  | 0.3  | 0.1   | 0.1  | 0.1  | 0.1  | 0.2  |
-
-* However, we already entered these configurations in `run_alue.sh`.
-
-* Finally, run the following command to generate the `.tsv` test sets submission 
- to [ALUE leaderboard](https://www.alue.org/leaderboard). 
-   
 ```
+export MODEL_NAME=JABER # or AT5S, AT5B
 cd JABER-PyTorch
-python generate_data.py --mode test 
+python generate_data.py --mode gather_alue --model_name $MODEL_NAME
 ```
 
 * It will simply select, for each task, the test set predictions of the best model 
-performing on its respective dev set. You will find 8 `.tsv` files in `JABER-PyTorch/alue_test_submission`
+performing on its respective dev set. You will find 8 `.tsv` files in 
+`JABER-PyTorch/alue_test_submission/${MODEL_NAME}`
  that you can directly submit to [ALUE leaderboard](https://www.alue.org/leaderboard).
+
 
 ## Join the Huawei Noah's Ark community
  
@@ -136,16 +178,14 @@ This project's [license](LICENSE) is under the Apache 2.0 license.
 
 ## Citation
 
-Please cite the following [paper](https://arxiv.org/abs/2112.04329) when using our code and model:
+Please cite the following [paper]() when using our code and model:
 
 ``` bibtex
-@misc{ghaddar2021jaber,
-      title={JABER: Junior Arabic BERt}, 
-      author={Abbas Ghaddar and Yimeng Wu and Ahmad Rashid and Khalil Bibi and Mehdi Rezagholizadeh and Chao Xing and Yasheng Wang and Duan Xinyu and Zhefeng Wang and Baoxing Huai and Xin Jiang and Qun Liu and Philippe Langlais},
-      year={2021},
-      eprint={2112.04329},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
+@article{ghaddar2022revisiting,
+  title={Revisiting Pre-trained Language Models and their Evaluation for Arabic Natural Language Understanding},
+  author={Ghaddar, Abbas and Wu, Yimeng and Bagga, Sunyam and Rashid, Ahmad and Bibi, Khalil and Rezagholizadeh, Mehdi and Xing, Chao and Wang, Yasheng and Xinyu, Duan and Wang, Zhefeng and others},
+  journal={arXiv preprint arXiv:2205.10687},
+  year={2022}
 }
 ```
 

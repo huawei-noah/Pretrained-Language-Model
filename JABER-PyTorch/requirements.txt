@@ -80,3 +80,5 @@ Werkzeug==2.0.1
 zipp==3.5.0
 pyarabic
 emoji
+sacrebleu==2.0.0
+rouge-score==0.0.4

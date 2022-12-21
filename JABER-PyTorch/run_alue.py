@@ -1,12 +1,7 @@
-# coding=utf-8
-# 2021.09.29 - modified the data loading and modeling part for JABER
-#              Huawei Technologies Co., Ltd. 
-# source: https://github.com/Alue-Benchmark/alue_baselines/blob/master/bert-baselines/run_alue.py
-
-
 # Modified version of run_glue script
 # Source: https://github.com/huggingface/transformers/blob/v2.7.0/examples/run_glue.py
 
+# coding=utf-8
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -21,43 +16,102 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Finetuning the library models for sequence classification on ALUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
+""" Finetuning the library models for sequence classification on ALUE (T5)."""
 
 
-import argparse
-import json
 import logging
-import os
-import random
-import pickle
 
-import numpy as np
 import torch
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-from tqdm import tqdm, trange
+from tqdm import trange
 
-from NEZHA_PyTorch.modeling_nezha import (
-    BertConfig,
-    BertForSequenceClassification,
-    BertForMultiLabelSequenceClassification 
+from transformers import (
+    AdamW,
+    AutoConfig,
+    T5ForConditionalGeneration,
+    get_constant_schedule,
+    Adafactor,
 )
 
-from NEZHA_PyTorch.optimization import BertAdam
-
-from NEZHA_PyTorch.tools import utils
-from compute_metrics import alue_compute_metrics as compute_metrics
-from processors import alue_convert_examples_to_features as convert_examples_to_features
-from processors import alue_output_modes as output_modes
-from processors import alue_tasks_label_list as tasks_label_list
 
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError:
     from tensorboardX import SummaryWriter
 
+from generate_data import *
 
 logger = logging.getLogger(__name__)
+
+
+class MyDataCollator:
+    def __init__(self, args, data_processor: DataProcessor):
+        self.task_type = data_processor.task_type
+        self.is_gen = data_processor.is_gen
+        self.arch = args.arch
+
+        self.pad_idx = data_processor.pad_idx
+        self.bos_idx, self.eos_idx = data_processor.bos_idx, data_processor.eos_idx
+
+    def __call__(self, features):
+        batch = self._pad([f["input_ids"] for f in features])
+
+        if self.task_type in ["mlc", "gen"] or self.is_gen:
+            labels = [f["labels"] for f in features]
+        else:
+            labels = [f["labels"][0] for f in features]
+
+        if self.is_gen:
+            batch.update(self._pad_labels(labels))
+        else:
+            dtype = torch.float if self.task_type == "reg" and not self.is_gen else torch.long
+            batch["labels"] = torch.tensor(labels, dtype=dtype)
+
+        return batch
+
+    def _pad(self, input_ids_lst):
+        msq = max(len(lst) for lst in input_ids_lst)
+        input_ids, attention_mask = [], []
+        for ii in input_ids_lst:
+            val = msq - len(ii)
+            input_ids.append(ii + [self.pad_idx] * val)
+            attention_mask.append([1] * len(ii) + [0] * val)
+        input_ids = torch.as_tensor(input_ids, dtype=torch.long)
+        attention_mask = torch.as_tensor(attention_mask, dtype=torch.long)
+        batch = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.arch == "bert":
+            batch["token_type_ids"] = self.get_segment_ids(input_ids)
+
+        return batch
+
+    def _pad_labels(self, labels_lst):
+
+        msq = max(len(lst) for lst in labels_lst)
+        labels, decoder_attention_mask, decoder_input_ids = [], [], []
+        for lbl in labels_lst:
+            seq_len = len(lbl)
+            labels.append(lbl + [self.eos_idx] + [-100] * (msq - seq_len))
+            decoder_input_ids.append([self.pad_idx]+lbl + [0] * (msq - seq_len)) #self.bos_idx
+            decoder_attention_mask.append([1] * (seq_len+1) + [0] * (msq - seq_len))
+
+        labels = torch.as_tensor(labels, dtype=torch.long)
+        decoder_attention_mask = torch.as_tensor(decoder_attention_mask, dtype=torch.long)
+        decoder_input_ids = torch.as_tensor(decoder_input_ids, dtype=torch.long)
+        return {"labels": labels,
+                "decoder_input_ids": decoder_input_ids, "decoder_attention_mask": decoder_attention_mask}
+
+    def get_segment_ids(self, input_ids):
+        batch_size, max_seq_len = input_ids.shape
+        rng = torch.tile(torch.unsqueeze(torch.arange(max_seq_len), 0),
+                         (batch_size, 1))  # , device=torch.device('cuda')
+        zero_arr, one_arr = torch.zeros_like(input_ids), torch.ones_like(input_ids)
+        cond = input_ids == (self.eos_idx * one_arr)
+        segment_ids, _ = torch.min(torch.where(cond, rng, max_seq_len * one_arr), dim=-1)
+        segment_ids = torch.tile(torch.unsqueeze(segment_ids, 1), (1, max_seq_len))
+        cond = torch.logical_and(torch.greater(rng, segment_ids), torch.not_equal(input_ids, zero_arr))
+        segment_ids = torch.where(cond, one_arr, zero_arr)
+        return segment_ids
 
 
 def set_seed(args):
@@ -69,32 +123,27 @@ def set_seed(args):
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-
 BEST_ACCURACY = -1
-best_pred_dict = {}
+BEST_PRED_DICT = {}
 
-def train(args, data, model):
+def train(args, data_processor: DataProcessor, model, data_collator: MyDataCollator):
     global BEST_ACCURACY
-    global best_pred_dict
     """ Train the model """
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter()
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    
-    train_dataset = load_and_cache_examples(args, data, args.task_name, evaluate=False)
-    train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
-    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
+    dataset_dict, sampler_dict, dataloader_dict = load_dataloaders(args, data_processor, data_collator)
     if args.max_steps > 0:
         t_total = args.max_steps
-        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
+        args.num_train_epochs = args.max_steps // (len(dataloader_dict["train"]) // args.gradient_accumulation_steps) + 1
     else:
-        args.logging_steps = len(train_dataloader) // args.gradient_accumulation_steps 
-        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+        args.logging_steps = len(dataloader_dict["train"]) // args.gradient_accumulation_steps
+        t_total = len(dataloader_dict["train"]) // args.gradient_accumulation_steps * args.num_train_epochs
 
     # Prepare optimizer and schedule (linear warmup and decay)
-    no_decay = ["bias", "LayerNorm.weight"]
+    no_decay = ["bias", "layer_norm.weight"]#
     optimizer_grouped_parameters = [
         {
             "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -103,15 +152,23 @@ def train(args, data, model):
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
     ]
 
-    optimizer = BertAdam(optimizer_grouped_parameters, 
-                         lr=args.learning_rate, 
-                         warmup=args.warmup_portion,
-                         t_total=t_total)
+    if args.arch == "bert":
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
 
-    # Check if saved optimizer states exist
-    if os.path.isfile(os.path.join(args.model_path, "optimizer.pt")):
-        # Load in optimizer states
+    else:
+        optimizer = Adafactor(model.parameters(),  # optimizer_grouped_parameters,
+                              lr=args.learning_rate,
+                              relative_step=False,
+                              warmup_init=False)
+    scheduler = get_constant_schedule(optimizer)
+
+    # Check if saved optimizer or scheduler states exist
+    if os.path.isfile(os.path.join(args.model_path, "optimizer.pt")) and os.path.isfile(
+        os.path.join(args.model_path, "scheduler.pt")
+    ):
+        # Load in optimizer and scheduler states
         optimizer.load_state_dict(torch.load(os.path.join(args.model_path, "optimizer.pt")))
+        scheduler.load_state_dict(torch.load(os.path.join(args.model_path, "scheduler.pt")))
 
     if args.fp16:
         try:
@@ -132,7 +189,7 @@ def train(args, data, model):
 
     # Train!
     logger.info("***** Running training *****")
-    logger.info("  Num examples = %d", len(train_dataset))
+    logger.info("  Num examples = %d", len(dataset_dict["train"]))
     logger.info("  Num Epochs = %d", args.num_train_epochs)
     logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
     logger.info(
@@ -154,8 +211,8 @@ def train(args, data, model):
             global_step = int(args.model_path.split("-")[-1].split("/")[0])
         except ValueError:
             global_step = 0
-        epochs_trained = global_step // (len(train_dataloader) // args.gradient_accumulation_steps)
-        steps_trained_in_current_epoch = global_step % (len(train_dataloader) // args.gradient_accumulation_steps)
+        epochs_trained = global_step // (len(dataloader_dict["train"]) // args.gradient_accumulation_steps)
+        steps_trained_in_current_epoch = global_step % (len(dataloader_dict["train"]) // args.gradient_accumulation_steps)
 
         logger.info("  Continuing training from checkpoint, will skip to saved global_step")
         logger.info("  Continuing training from epoch %d", epochs_trained)
@@ -169,7 +226,7 @@ def train(args, data, model):
     )
     set_seed(args)  # Added here for reproductibility
     for epoch_index in train_iterator:
-        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
+        epoch_iterator = tqdm(dataloader_dict["train"], desc="Iteration", disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
 
             # Skip past any already trained steps if resuming training
@@ -178,9 +235,7 @@ def train(args, data, model):
                 continue
 
             model.train()
-            batch = tuple(t.to(args.device) for t in batch)
-            inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
-            inputs["token_type_ids"] = batch[2]
+            inputs = {k: v.to(args.device) for k, v in batch.items()}
             outputs = model(**inputs)
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
 
@@ -207,31 +262,27 @@ def train(args, data, model):
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                 optimizer.step()
+                scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
 
-                # at the end of each epoch
-                if args.local_rank in [-1, 0] and (step + 1) == len(epoch_iterator):
+                # if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step == 1:
+                # if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                if args.local_rank in [-1, 0] and args.save_epochs and (step + 1) == len(epoch_iterator):# or True
                     logs = {}
                     if (
                         args.local_rank == -1 and args.evaluate_during_training
                     ):  # Only evaluate when single GPU otherwise metrics may not average well
-                        # if args.task_name != "mq2q":
-                        results = evaluate(args, data, model)
-                        if args.task_name == 'svreg':
-                            metrics = results['pearson']
-                        elif args.task_name == 'sec':
-                            metrics = results['jaccard']
-                        elif args.task_name == 'xnli':
-                            metrics = results['acc']
-                        else:
-                            metrics = results['f1']
-                        
+
+                        eval_loss, results, metrics = \
+                            run_eval(args, data_processor, model, dataset_dict, dataloader_dict)
                         for key, value in results.items():
                             eval_key = "eval_{}".format(key)
                             logs[eval_key] = value
+
+                        data_processor.reset_pred()
                     loss_scalar = (tr_loss - logging_loss) / args.logging_steps
-                    learning_rate_scalar = optimizer.get_lr()[0]
+                    learning_rate_scalar = scheduler.get_lr()[0]
                     logs["learning_rate"] = learning_rate_scalar
                     logs["loss"] = loss_scalar
                     logging_loss = tr_loss
@@ -245,40 +296,40 @@ def train(args, data, model):
                     print("Intermediate evaluate: ", metrics)
                     if BEST_ACCURACY < metrics:
                         BEST_ACCURACY = metrics
+                        global BEST_PRED_DICT
 
-                        ### do prediction if do_eval
-                        if args.do_eval and args.local_rank in [-1, 0]:
-                            evaluate (args,data,model,test=True)
-
-                        ## save the current best ckpt to BestModel.bin 
-                        if args.save_model:                
+                        if args.save_model:
                             checkpoint_name = "pytorch_model.bin"
+
+                            if not os.path.exists(output_dir):
+                                os.makedirs(output_dir)
                             model_to_save = (
                                 model.module if hasattr(model, "module") else model
                             )  # Take care of distributed/parallel training
-                            output_model_file = os.path.join(output_dir, checkpoint_name)
+
+                            output_model_file = os.path.join(args.output_dir, checkpoint_name)
                             logger.info("Saving model checkpoint to %s", output_model_file)
                             torch.save(model_to_save.state_dict(), output_model_file)
                             print("Best Model Saved!")
-                            output_config_file = os.path.join(output_dir, "bert_config.json")
+                            output_config_file = os.path.join(args.output_dir, "config.json")
                             with open(output_config_file, 'w') as f:
                                 f.write(model_to_save.config.to_json_string())
-                        
-                            logger.info("Saving optimizer states to %s", output_dir)
-                            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
 
-                        # save best eval result
+                            # logger.info("Saving optimizer states to %s", output_dir)
+                            # torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+
+                        # save best result
                         output_eval_file = os.path.join(output_dir, "best_eval_results.txt")
                         with open(output_eval_file, "w") as writer:
                             logger.info("***** Best Eval results *****")
                             for key in sorted(results.keys()):
                                 logger.info("  %s = %s", key, str(results[key]))
                                 writer.write("%s = %s\n" % (key, str(results[key])))
-                        
-                    
+
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
+
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
@@ -289,216 +340,189 @@ def train(args, data, model):
     return global_step, tr_loss / global_step
 
 
-def evaluate(args, data, model, prefix="", test=False):
-    # Loop to handle XNLI double evaluation (XNLI-test, XNLI-diag)
-    eval_task_names = ("xnli", "xnli-diag") if args.task_name == "xnli" and test==True else (args.task_name,)  # only create (xnli, xnli-diag) for test 
-    eval_outputs_dirs = (args.output_dir, args.output_dir + "-diag") if args.task_name == "xnli" else (args.output_dir,)
-    eval_mode = "dev" if not test else "test"
+def run_eval(args, data_processor: DataProcessor, model, dataset_dict, dataloader_dict):
+    # eval_dataloader, eval_sample_num, portion
+    eval_output_dir = args.output_dir
 
-    results = {}
-    for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs): 
-        eval_dataset = load_and_cache_examples(args, data, eval_task, evaluate=True, test=test)
+    if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
+        os.makedirs(eval_output_dir)
 
-        if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
-            os.makedirs(eval_output_dir)
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
 
-        args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
-        # Note that DistributedSampler samples randomly
-        eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+    # multi-gpu eval
+    if args.n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
+        model = torch.nn.DataParallel(model)
+    eval_loss = 0.0
 
-        # multi-gpu eval
-        if args.n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
-            model = torch.nn.DataParallel(model)
+    portion_lst = ["dev"] + [p for p in dataloader_dict.keys() if p not in ["dev", "train"]]
+    dev_results, dev_metrics = None, -1
 
-        # Eval!
-        logger.info(f"***** Running {eval_mode} {prefix} *****")
-        logger.info("  Num examples = %d", len(eval_dataset))
+    for portion in portion_lst:
+        if portion != "dev" and dev_metrics < BEST_ACCURACY: continue
+        logger.info("***** Running evaluation {} *****".format(portion))
+        logger.info("  Num examples = %d", len(dataset_dict[portion]))
         logger.info("  Batch size = %d", args.eval_batch_size)
-        eval_loss = 0.0
+
         nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
+
+        for batch in tqdm(dataloader_dict[portion], desc="Evaluating"):
             model.eval()
-            batch = tuple(t.to(args.device) for t in batch)
-
+            inputs = {k: v.to(args.device) for k, v in batch.items()}
             with torch.no_grad():
-                inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
-                inputs["token_type_ids"] = batch[2]
+                if data_processor.is_gen:
+                    decoder_seq_len = inputs["labels"].shape[-1]
+                    inputs = {"input_ids": inputs["input_ids"], "attention_mask": inputs["attention_mask"]}
+                    obj = model.module if args.n_gpu > 1 else model
+                    decoder_output_ids = obj.generate(**inputs,
+                                                               num_beams=5,
+                                                               max_length=decoder_seq_len,
+                                                               early_stopping=True
+                                                        )
+                    decoder_output_ids = decoder_output_ids.detach().cpu().numpy().tolist()
+                    data_processor.y_pred[portion].append(decoder_output_ids)
 
-                if len(inputs["labels"][0].shape) == 0 and inputs["labels"][0] == -1:
-                    inputs["labels"] = None
-
-                outputs = model(**inputs)
-                if test:
-                    logits = outputs[0]
                 else:
-                    tmp_eval_loss, logits = outputs[:2]
+                    model_output = model(**inputs)
+                    tmp_eval_loss, logits = model_output[:2]
                     eval_loss += tmp_eval_loss.mean().item()
+                    logits = logits.detach().cpu().numpy().tolist()
+                    data_processor.y_logits[portion].append(logits)
+
             nb_eval_steps += 1
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                if not test:
-                    out_label_ids = inputs["labels"].detach().cpu().numpy()
-            else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                if not test:
-                    out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
-                    
+        data_processor.process_logits(portion)
+        if portion == "dev":
+            dev_results = data_processor.compute_score(portion)
+            dev_metrics = data_processor.final_metric(dev_results)
+            eval_loss = eval_loss / nb_eval_steps
+            logger.info("***** Eval results {} *****".format(portion))
+            logger.info("  %s = %s", "eval_loss", str(eval_loss))
 
-        eval_loss = eval_loss / nb_eval_steps
-        if args.output_mode == "classification":
-            preds = np.argmax(preds, axis=1)
-        elif args.output_mode == "regression":
-            preds = np.squeeze(preds)
-        elif args.output_mode == "multilabel":
-            preds = preds > args.threshold
-            
-        if test:
-            # save current prediction into best_pred_dict
-            key = "diag" if eval_task == "xnli-diag" else "test"
-            best_pred_dict[key] = preds
-            
+            for key in sorted(dev_results.keys()):
+                logger.info("  %s = %s", key, str(dev_results[key]))
         else:
-            result = compute_metrics(eval_task, preds, out_label_ids)
-            results.update(result)
+            key = "diag" if args.task_name == "xnli-diag" else "test"
+            BEST_PRED_DICT[key] = data_processor.y_pred[portion]
+            if data_processor.y_true[portion]:
+                results = data_processor.compute_score(portion)
+                for key in sorted(results.keys()):
+                    logger.info("  %s = %s", key, str(results[key]))
 
-            output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
-            with open(output_eval_file, "w") as writer:
-                logger.info("***** Eval results {} *****".format(prefix))
-                for key in sorted(result.keys()):
-                    logger.info("  %s = %s", key, str(result[key]))
-                    writer.write("%s = %s\n" % (key, str(result[key])))
-
-    return results
+    return eval_loss, dev_results, dev_metrics
 
 
-def load_and_cache_examples(args, data, task, evaluate=False, test=False):
-    '''
-    ALUE:
-    - dev
-        - MDD: read "test"
-    - test
-        -XNLI: both "test" and "diag"
-    '''
-    if args.local_rank not in [-1, 0] and not evaluate:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
+def load_model(args, data_processor: DataProcessor):
+    ckpt_name = "pytorch_model-%s.bin" % args.step if args.step != "-1" else "pytorch_model.bin"
 
-    main_task = task.split("-")[0] 
-    output_mode = output_modes[main_task]
-    # Load data features from cache or dataset file
-    data_type = "dev" if evaluate else "train"
-    if test: data_type = "test"
-    cached_features_file = os.path.join(
-        "features",
-        "cached_{}_{}_{}_{}".format(
-            data_type,
-            list(filter(None, args.model_path.split("/"))).pop(),
-            str(args.max_seq_length),
-            str(task),
-        ),
-    )
-    if not os.path.exists("features"):
-        os.makedirs("features")
-    if os.path.exists(cached_features_file) and not args.overwrite_cache:
-        logger.info("Loading features from cached file %s", cached_features_file)
-        features = torch.load(cached_features_file)
+    def get_disc_lbl_num():
+        if data_processor.task_type == "mlc": return len(MLC_LBL_DICT[data_processor.task_name])
+        elif data_processor.task_type == "ner": return len(data_processor.id2label)
+        return len(data_processor.id2label) if data_processor.id2label else 1
+
+    if args.arch == "bert":
+        num_labels = get_disc_lbl_num()
+        model = _load_jaber(args, data_processor.task_type, num_labels)
+
+    elif args.arch == "t5":
+        t5_config = AutoConfig.from_pretrained(args.model_path, dropout_rate=args.dropout_rate)
+        if data_processor.is_gen:
+            model = T5ForConditionalGeneration.from_pretrained(
+                os.path.join(args.model_path, ckpt_name),
+                config=t5_config)
+
     else:
-        label_list = tasks_label_list[main_task]
-        data_key = main_task.upper() 
-        if test:
-            if task == "xnli-diag":
-                examples = data[data_key]['diag']
-            else:
-                examples = data[data_key]['test'] 
-        elif evaluate:
-            examples = data[data_key]['dev'] 
-        else:           
-            examples = data[data_key]['train']  
+        raise ValueError("Unsupported Model arch `%s`" % args.arch)
 
-        features = convert_examples_to_features(
-            examples,
-            label_list=label_list,
-            max_length=args.max_seq_length,
-            output_mode=output_mode,
-            pad_on_left=False,  # pad on the left for xlnet
-            pad_token=0,
-            pad_token_segment_id=0,
+    return model
+
+
+def _load_jaber(args, task_type, num_labels):
+    from NEZHA_PyTorch.modeling_nezha import (
+        BertConfig,
+        BertForSequenceClassification,
+        BertForMultiLabelSequenceClassification
+    )
+    from NEZHA_PyTorch.tools import utils
+
+    print('init model...')
+    ## rewrite the config file (hidden_dropout_prob)
+    config_path = os.path.join(args.model_path, 'bert_config.json')
+    with open(config_path, "r") as jsonFile:
+        bert_config = json.load(jsonFile)
+
+    bert_config["hidden_dropout_prob"] = args.dropout_rate
+    config_path = os.path.join("/tmp/", "config_bert_%s_%s.json" % (args.model_name, args.task_name))
+    with open(config_path, "w") as jsonFile:
+        json.dump(bert_config, jsonFile)
+
+    config = BertConfig.from_json_file(config_path)
+    os.remove(config_path)
+
+    if task_type == "mlc":
+        pretrained_model_prediction_type = BertForMultiLabelSequenceClassification
+    else:
+        pretrained_model_prediction_type = BertForSequenceClassification
+    model = pretrained_model_prediction_type(config, num_labels=num_labels)
+
+    utils.torch_show_all_params(model)
+    utils.torch_init_model(model, os.path.join(args.model_path, "pytorch_model.bin"))
+
+    return model
+
+
+def load_initials(args):
+    # load the dp class
+    key = (args.task_name, args.model_name)
+    filename = os.path.join("./raw_datasets", "dp.%s.%s.pkl" % key)
+    with open(filename, 'rb') as fp:
+        data_processor = pickle.load(fp)
+
+    # load model
+    model = load_model(args, data_processor)
+    model.to(args.device)
+
+    # init data collator
+    data_collator = MyDataCollator(args, data_processor)
+
+    return data_processor, model, data_collator
+
+
+def load_dataloaders(args, data_processor, data_collator, overwrite_train=False):
+    dataset_dict, sampler_dict, dataloader_dict = {}, {}, {}
+
+    # load train dataset and dataloader
+    portion = "train"
+    key = ("dataset", data_processor.task_name, data_processor.model_name, data_processor.is_gen, portion)
+    cache_url = os.path.join("./raw_datasets", "%s_%s_%s_%s_%s" % key)
+    dataset_dict[portion] = datasets.load_from_disk(cache_url, keep_in_memory=False)
+    if args.local_rank == -1:
+        sampler_dict[portion] = RandomSampler(dataset_dict[portion])
+    else:
+        sampler_dict[portion] = DistributedSampler(dataset_dict[portion])
+    dataloader_dict[portion] = DataLoader(
+        dataset_dict[portion], sampler=sampler_dict[portion],
+        collate_fn=data_collator, batch_size=args.per_gpu_train_batch_size
+    )
+
+    # load dataset and dataloader for no train portion
+    for portion in data_processor.data_dict.keys():
+        if not overwrite_train and portion == "train": continue
+        key = ("dataset", data_processor.task_name, data_processor.model_name, data_processor.is_gen, portion)
+        cache_url = os.path.join("./raw_datasets", "%s_%s_%s_%s_%s" % key)
+        dataset_dict[portion] = datasets.load_from_disk(cache_url, keep_in_memory=False)
+        sampler_dict[portion] = SequentialSampler(dataset_dict[portion])
+        dataloader_dict[portion] = DataLoader(
+            dataset_dict[portion], sampler=sampler_dict[portion], collate_fn=data_collator,
+            batch_size=args.per_gpu_eval_batch_size
         )
-        if args.local_rank in [-1, 0]:
-            logger.info("Saving features into cached file %s", cached_features_file)
-            torch.save(features, cached_features_file)
 
-    if args.local_rank == 0 and not evaluate:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
-
-    # Convert to Tensors and build dataset
-    all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-    all_attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
-    all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
-  
-    if test:
-        all_labels = torch.tensor([-1 for f in features], dtype=torch.long)
-    elif output_mode in ["classification", "multilabel"]:
-        all_labels = torch.tensor([f.label for f in features], dtype=torch.long)
-    elif output_mode == "regression":
-        all_labels = torch.tensor([f.label for f in features], dtype=torch.float)
-    
-    dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, all_labels)
-    
-        
-    return dataset
+    return dataset_dict, sampler_dict, dataloader_dict
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    # Required parameters
     parser.add_argument(
-        "--data",
-        default=None,
-        type=str,
-        required=True,
-        help="path to the fine-tuning .pkl file",
-    )
-    parser.add_argument(
-        "--model_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to pre-trained model or shortcut name",
-    )
-
-    parser.add_argument(
-        "--model_name",
-        default=None,
-        type=str,
-        required=True,
-        help="name of the model (e.g. pytorch_model-835820.bin",
-    )
-
-    parser.add_argument(
-        "--task_name",
-        default=None,
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--output_dir",
-        default=None,
-        type=str,
-        required=True,
-        help="The output directory where the model predictions and checkpoints will be written.",
-    )
-    parser.add_argument(
-        "--log_name",
-        default="alue.log",
-        type=str,
-        help="The name of the log file",
-    )
-    parser.add_argument(
-        "--hidden_dropout_prob",
+        "--dropout_rate",
         default=0.1,
         type=float,
         help="The hidden_dropout_prob in bert config file",
@@ -510,19 +534,7 @@ def main():
         type=str,
         help="Where do you want to store the pre-trained models downloaded from s3",
     )
-    parser.add_argument(
-        "--max_seq_length",
-        default=256,
-        type=int,
-        help="The maximum total input sequence length after tokenization. Sequences longer "
-        "than this will be truncated, sequences shorter will be padded.",
-    )
-    parser.add_argument(
-        "--threshold",
-        default=0.25,
-        type=float,
-        help="The threshold used for interpreting probabilities to class labels in multilabel tasks",
-    )
+
     parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
     parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
     parser.add_argument(
@@ -557,7 +569,7 @@ def main():
 
     parser.add_argument("--logging_steps", type=int, default=-1, help="Log every X updates steps.")
     parser.add_argument("--save_steps", type=int, default=-1, help="Save checkpoint every X updates steps.")
-    parser.add_argument("--save_model", type=bool, default=True, help="Wheter to save the current best model or not.")
+    parser.add_argument("--save_epochs", type=bool, default=True, help="Save checkpoint at the end of each epoch.")
     parser.add_argument(
         "--eval_all_checkpoints",
         action="store_true",
@@ -587,10 +599,54 @@ def main():
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
     parser.add_argument("--server_ip", type=str, default="", help="For distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="For distant debugging.")
-    args = parser.parse_args()
 
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    parser.add_argument(
+        "--model_name",
+        default=None,
+        type=str,
+        required=True,
+        help="name of the model (e.g. pytorch_model-835820.bin)",
+    )
+    parser.add_argument(
+        "--task_name",
+        default="",
+        type=str,
+        help="Where do you want to store the pre-trained models downloaded from s3",
+    )
+    parser.add_argument(
+        "--output_dir",
+        default=None,
+        type=str,
+        required=True,
+        help="The output directory where the model predictions and checkpoints will be written.",
+    )
+    parser.add_argument(
+        "--log_file",
+        default=None,
+        type=str,
+        help="The name of the log file",
+    )
+    parser.add_argument(
+        "--step",
+        default=None,
+        type=str,
+        help="The name of the log file",
+    )
+    parser.add_argument(
+        "--model_path",
+        default=None,
+        type=str,
+        required=True,
+        help="Path to pre-trained model or shortcut name",
+    )
+    parser.add_argument(
+        "--save_model",
+        default=0,
+        type=int,
+        help="save bets ckpt or not",
+    )
+
+    args = parser.parse_args()
 
     if (
         os.path.exists(args.output_dir)
@@ -639,80 +695,48 @@ def main():
         args.fp16,
     )
 
+    for arch, model_name_set in MODEL_ARCH_MAP.items():
+        if args.model_name in model_name_set:
+            args.arch = arch
+            break
+
+    # if args.arch == "t5":
+    #     args.per_gpu_eval_batch_size = 8
     # Set seed
     set_seed(args)
-
-    # Prepare ALUE task
-    args.task_name = args.task_name.lower()
-    if args.task_name not in tasks_label_list:
-        raise ValueError("Task not found: %s" % (args.task_name))
-    args.output_mode = output_modes[args.task_name]
-    label_list = tasks_label_list[args.task_name]
-    num_labels = len(label_list)
 
     # Load pretrained model and tokenizer
     if args.local_rank not in [-1, 0]:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
-    
-    print('init model...')
-    ## rewrite the config file (hidden_dropout_prob)
-    config_path = os.path.join(args.model_path,'bert_config.json')
-    with open(config_path, "r") as jsonFile:
-        bert_config = json.load(jsonFile)
 
-    bert_config["hidden_dropout_prob"] = args.hidden_dropout_prob
-    config_path = os.path.join(args.output_dir, "config_bert_%s_%s.json" % (args.model_name, args.task_name))
-    with open(config_path, "w") as jsonFile:
-        json.dump(bert_config, jsonFile)
-    
-    config = BertConfig.from_json_file(config_path)
-    os.remove(config_path)
-    
-    if args.output_mode == 'multilabel':
-        pretrained_model_prediction_type = BertForMultiLabelSequenceClassification
-    else:
-        pretrained_model_prediction_type = BertForSequenceClassification
-
-    model = pretrained_model_prediction_type(config,num_labels=num_labels)
-    utils.torch_show_all_params(model)
-    utils.torch_init_model(model, os.path.join(args.model_path, args.model_name))
+    data_processor, model, data_collator = load_initials(args)
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 
-    model.to(args.device)
-
     logger.info("Training/evaluation parameters %s", args)
-
-    ### load data
-    data = pickle.load(open(args.data, "rb"))
 
     # Training
     if args.do_train:
-        global_step, tr_loss = train(args, data, model)
+        global_step, tr_loss = train(args, data_processor, model, data_collator)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
-    
-    # save the best results for each task
-    fout = open("./%s" % args.log_name, 'a')
-    ckpt = args.model_name.split("-")[-1].split(".")[0]
-    hp_list = ["per_gpu_train_batch_size", "learning_rate", "hidden_dropout_prob"]
-    exp_name = ckpt + " " + " ".join(["%s %s" % (hp, getattr(args, hp)) for hp in hp_list])
-    fout.write("%s\t%s\t%s\t%.2f\n" % ("JABER", args.task_name.upper(), exp_name, BEST_ACCURACY*100))
+
+    # save the best results for each model_type
+    fout = open(args.log_file, 'a')
+    hp_str = " ".join(["%s:%s" % (hp, getattr(args, hp)) for hp in HP_LST if hasattr(args, hp)])
+    fout.write("%s\t%s\t%s\t%.2f\t%s\n" % (args.model_name, args.step, args.task_name, BEST_ACCURACY, hp_str))
     fout.close()
 
     # save prediction for the best checkpoint
-    if args.do_eval and args.local_rank in [-1, 0]:
-        data_key = args.task_name.upper()
-        for portion, y_pred in best_pred_dict.items():
-            idx_lst = [exp["idx"] for exp in data[data_key][portion]]
-            best_pred_dict[portion] = [(x, y) for x, y in zip(idx_lst, y_pred)]
-        key = ("JABER", args.task_name.upper(), "%.2f" % (BEST_ACCURACY*100))
-        pred_path = "./alue_predictions"
+    score_ext = "%.2f" % BEST_ACCURACY
+    if args.task_name in ALUE_TASKS and args.local_rank in [-1, 0]:
+        pred_path = "./alue_predictions/%s" % args.model_name
         if not os.path.exists(pred_path):
             os.makedirs(pred_path)
-        filename = os.path.join(pred_path, "%s_%s_%s.pkl" % key)
-        with open(filename, 'wb') as handle:
-            pickle.dump(best_pred_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        for portion, y_pred in BEST_PRED_DICT.items():
+            raw_dataset_dir = "./raw_datasets"
+            save_alue_leaderboard(raw_dataset_dir, pred_path, args.task_name, portion, y_pred, score_ext)
+
 
 
 if __name__ == "__main__":

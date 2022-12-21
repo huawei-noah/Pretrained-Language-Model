@@ -27,15 +27,15 @@ locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 ############################################
 #### Arabert Preprocessor Place holder #####
 ############################################
-from preprocess_test import ArabertPreprocessor
+# from preprocess import ArabertPreprocessor
 
-# class ArabertPreprocessor:
-#     def __init__(self, model_name):
-#         print("Warning!!!! This is just an empty a placeholder class. "
-#               "Follow instructions in README.md file to obtain the true `ArabertPreprocessor` class")
-#
-#     def preprocess(self, text):
-#         return text
+class ArabertPreprocessor:
+    def __init__(self, model_name):
+        print("Warning!!!! This is just an empty a placeholder class. "
+              "Follow instructions in README.md file to obtain the true `ArabertPreprocessor` class")
+
+    def preprocess(self, text):
+        return text
 
 
 def normalize_text(pp_text):

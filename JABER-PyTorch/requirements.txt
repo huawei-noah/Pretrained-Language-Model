@@ -22,7 +22,7 @@ google-auth==1.35.0
 google-auth-oauthlib==0.4.5
 grpcio==1.39.0
 h5py==3.1.0
-horovod==0.24.0
+horovod==0.22.1
 idna==2.10
 importlib-metadata==4.8.1
 jmespath==0.10.0
@@ -80,3 +80,5 @@ Werkzeug==2.0.1
 zipp==3.5.0
 pyarabic
 emoji
+sacrebleu==2.0.0
+rouge-score==0.0.4

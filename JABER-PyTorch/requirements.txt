@@ -36,7 +36,7 @@ mkl-service==2.3.0
 mock==4.0.3
 numpy
 nvidia-ml-py3==7.352.0
-oauthlib==3.1.1
+oauthlib==3.2.2
 olefile==0.46
 packaging==20.9
 pandas==1.0.1

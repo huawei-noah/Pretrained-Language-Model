@@ -76,7 +76,7 @@ tqdm==4.31.1
 transformers==2.11.0
 typing-extensions==3.10.0.2
 urllib3==1.26.5
-Werkzeug==2.0.1
+Werkzeug==2.2.3
 zipp==3.5.0
 pyarabic
 emoji

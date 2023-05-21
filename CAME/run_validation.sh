@@ -1,0 +1,27 @@
+python -m torch.distributed.launch --nproc_per_node=8 \
+    /home/ma-user/work/Old_BERT/validation.py \
+    --seed=12439 \
+    --do_train \
+    --config_file=/home/ma-user/work/Old_BERT/bert_large_config.json \
+    --output_dir=/cache/results \
+     --fp16 \
+		--optimizer=SM3 \
+    --allreduce_post_accumulation \
+    --allreduce_post_accumulation_fp16 \
+    --gradient_accumulation_steps=256 \
+	 --bert_model=bert-large-uncased \
+	 --init_checkpoint=/cache/ckpt_9989.pt \
+    --log_freq=1 \
+    --train_batch_size=4096 \
+		--dev_batch_size=64 \
+    --learning_rate=0.1 \
+    --warmup_proportion=0.1 \
+	 --num_steps_per_checkpoint=5 \
+    --input_dir=/cache/data/train_data \
+	--dev_dir=/cache/data/dev_data \
+    --phase2 \
+    --max_seq_length=128 \
+    --max_predictions_per_seq=20 \
+    --max_steps=20000 \
+    --init_checkpoint=None \
+    --phase1_end_step=0

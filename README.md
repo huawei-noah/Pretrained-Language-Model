@@ -21,3 +21,4 @@ This repository provides the latest pretrained language models and its related o
 * [CeMAT](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/CeMAT) is a universal sequence-to-sequence multi-lingual pre-training language model for both autoregressive and non-autoregressive neural machine translation tasks.
 * [Noah_WuKong](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/Noah_WuKong) is a large-scale Chinese vision-language dataset and a group of benchmarking models trained on it.
 * [Noah_WuKong-MindSpore](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/Noah_Wukong-MindSpore) is a MindSpore version of Noah_WuKong.
+* [CAME](https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/CAME) is a Confidence-guided Adaptive Memory Efficient Optimizer.

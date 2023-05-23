@@ -41,7 +41,7 @@ olefile==0.46
 packaging==20.9
 pandas==1.0.1
 Pillow 
-protobuf==3.17.3
+protobuf==3.18.3
 psutil==5.8.0
 PyArabic==0.6.10
 pycparser==2.20

@@ -26,7 +26,7 @@ horovod==0.22.1
 idna==2.10
 importlib-metadata==4.8.1
 jmespath==0.10.0
-joblib==1.0.1
+joblib==1.2.0
 Keras-Applications==1.0.8
 Keras-Preprocessing==1.1.2
 Markdown==3.3.4

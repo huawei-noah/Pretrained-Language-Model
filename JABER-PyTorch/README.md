@@ -16,6 +16,9 @@ which will allow you reproduce the test set submission that obtained rank one
 
 * We also provide source code for fine tuning and models weights for `T5` models on ALUE
 and some generative tasks. 
+
+* **(01-01-2024)** We add support for 4 new models (JABERv2, JABERv2-6L, AT5Sv2, AT5Bv2), as well as 
+code to support finetuning on [ORCA leaderboard](https://orca.dlnlp.ai/) tasks.
  
 ## Requirements
 We recommend to create a conda environment 
@@ -42,7 +45,11 @@ pip install -r envs/requirements.txt
     3. [AT5B](https://huggingface.co/huawei-noah/AT5B) Arabic T5-base model.
     4. **(coming soon) Char-JABER** Arabic BERT-base model with Character level embeddings.
     5. **(coming soon) SABER** Arabic BERT-large model.
-    
+    6. [JABERv2](https://huggingface.co/huawei-noah/JABERv2) Arabic BERT-base model.
+    7. [JABERv2-6L](https://huggingface.co/huawei-noah/JABERv2-6L) Arabic BERT-base 6 layer model.
+    8. [AT5Sv2](https://huggingface.co/huawei-noah/AT5Sv2) Arabic T5-small model.
+    9. [AT5Bv2](https://huggingface.co/huawei-noah/AT5Bv2) Arabic T5-base model.
+     
 * Place all downloaded models under `JABER-PyTorch/pretrained_models/` 
 
 ### External Modules
@@ -122,33 +129,53 @@ the correct train/dev/test split of `MDD` task.
     * Muli-label Classification: SEC
     * NER: ANERCorp
     * Text2Text (generative for T5 only): TS, QA, QG, EMD
+
+* We also support all ORCA tasks.
     
-* Run this command to process ALUE datasets:
- 
+* Run this command to process ALUE or ORCA datasets:
+     1. [JABER](https://huggingface.co/huawei-noah/JABER) Arabic BERT-base model.
+    2. [AT5S](https://huggingface.co/huawei-noah/AT5S) Arabic T5-small model.
+    3. [AT5B](https://huggingface.co/huawei-noah/AT5B) Arabic T5-base model.
+    4. **(coming soon) Char-JABER** Arabic BERT-base model with Character level embeddings.
+    5. **(coming soon) SABER** Arabic BERT-large model.
+    6. [JABERv2](https://huggingface.co/huawei-noah/JABERv2) Arabic BERT-base model.
+    7. [JABERv2-6L](https://huggingface.co/huawei-noah/JABERv2-6L) Arabic BERT-base 6 layer model.
+    8. [AT5Sv2](https://huggingface.co/huawei-noah/AT5Sv2) Arabic T5-small model.
+    9. [AT5Bv2](https://huggingface.co/huawei-noah/AT5Bv2) Arabic T5-base model.
+     
 ```
-export MODEL_NAME=JABER # or AT5S, AT5B
+export MODEL_NAME=JABER # JABERv2, JABERv2-6L, AT5S, AT5B, AT5Sv2, AT5Bv2
+export BENCH_NAME=alue # orca
 cd JABER-PyTorch
-python generate_data.py --mode parse_raw --model_name $MODEL_NAME
+
+python generate_data.py --bench_name $BENCH_NAME --model_name $MODEL_NAME
+
 ```
 
 ## FineTuning 
 
-* Run the following command to fine tune on a given task:
+* Run the script `run_alue.sh` to finetune a given model on a given task.
 
 ```
-export CUDA_VISIBLE_DEVICES="0"
-
-export MODEL_NAME="JABER" # or AT5S, AT5B 
-export TASK_NAME="SVREG" # any of the 8 ALUE tasks or 4 genrative task (for T5 models only)
-
-
-export BS="32" # set it to the best HP from the appendix of the EMNLP paper 
-export DR="0.1" # set it to the best HP from the appendix of the EMNLP paper
-export LR="2e-05" # set it to the best HP from the appendix of the EMNLP paper
-
-bash run_alue.sh $MODEL_NAME $TASK_NAME $BS $DR $LR
+bash run_alue.sh
 ```
 
+* You need change the following arguments in the scripts
+
+```bash
+model_name="JABER" # JABERv2, JABERv2-6L, AT5S, AT5B, AT5Sv2, AT5Bv2 
+task_name="abusive" # any task from alue (8 tasks) or orca (29)
+per_gpu_train_batch_size="32" # based on the best HP
+dropout_rate="0.2" # based on the best HP
+learning_rate="2e-05" # based on the best HP
+save_model=0
+num_train_epochs=30
+is_gen=0 # based on the best HP
+```
+
+* The hyper-parameters for ORCA tasks is in a block comment at the bottom of the `run_alue.sh` script.
+
+<!--
 * To reproduce our the ALUE test submission you need to:
     1. For each of the ALUE 8 tasks, run the above command 5 times (random seeds is 
     automatically set by `--seed -1`). Don't forget to set the best HP.
@@ -166,6 +193,8 @@ performing on its respective dev set. You will find 8 `.tsv` files in
 `JABER-PyTorch/alue_test_submission/${MODEL_NAME}`
  that you can directly submit to [ALUE leaderboard](https://www.alue.org/leaderboard).
 
+-->
+
 
 ## Join the Huawei Noah's Ark community
  
@@ -178,14 +207,29 @@ This project's [license](LICENSE) is under the Apache 2.0 license.
 
 ## Citation
 
-Please cite the following [paper]() when using our code and model:
+Please cite the following papers when using our code and model:
 
 ``` bibtex
-@article{ghaddar2022revisiting,
-  title={Revisiting Pre-trained Language Models and their Evaluation for Arabic Natural Language Understanding},
-  author={Ghaddar, Abbas and Wu, Yimeng and Bagga, Sunyam and Rashid, Ahmad and Bibi, Khalil and Rezagholizadeh, Mehdi and Xing, Chao and Wang, Yasheng and Xinyu, Duan and Wang, Zhefeng and others},
-  journal={arXiv preprint arXiv:2205.10687},
+@inproceedings{ghaddar2022revisiting,
+  title={Revisiting Pre-trained Language Models and their Evaluation for Arabic Natural Language Processing},
+  author={Ghaddar, Abbas and Wu, Yimeng and Bagga, Sunyam and Rashid, Ahmad and Bibi, Khalil and Rezagholizadeh, Mehdi and Xing, Chao and Wang, Yasheng and Duan, Xinyu and Wang, Zhefeng and others},
+  booktitle={Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing},
+  pages={3135--3151},
   year={2022}
+}
+
+@article{ghaddar2021jaber,
+  title={Jaber and saber: Junior and senior arabic bert},
+  author={Ghaddar, Abbas and Wu, Yimeng and Rashid, Ahmad and Bibi, Khalil and Rezagholizadeh, Mehdi and Xing, Chao and Wang, Yasheng and Xinyu, Duan and Wang, Zhefeng and Huai, Baoxing and others},
+  journal={arXiv preprint arXiv:2112.04329},
+  year={2021}
+}
+
+@article{ghaddar2024importance,
+  title={On the importance of Data Scale in Pretraining Arabic Language Models},
+  author={Ghaddar, Abbas and Langlais, Philippe and Rezagholizadeh, Mehdi and Chen, Boxing},
+  journal={arXiv preprint arXiv:todo},
+  year={2024}
 }
 ```
 

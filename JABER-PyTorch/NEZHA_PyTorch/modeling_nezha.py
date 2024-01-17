@@ -1,10 +1,6 @@
 # coding=utf-8
-# 2021.09.29-Added and modified BertForMultiLabelSequenceClassification
-# source: https://github.com/Alue-Benchmark/alue_baselines/blob/master/bert-baselines/bert_models.py ()
-# Huawei Technologies Co., Ltd
-
 # 2020.12.18-Changed for rpe in NEZHA model.
-# Huawei Technologies Co., Ltd. <foss@huawei.com> 
+# Huawei Technologies Co., Ltd. <foss@huawei.com>
 # Copyright 2020 Huawei Technologies Co., Ltd.
 # Copyright 2018 The Google AI Language Team Authors, The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
@@ -37,7 +33,7 @@ import numpy as np
 
 import torch
 from torch import nn
-from torch.nn import CrossEntropyLoss, MSELoss, BCEWithLogitsLoss 
+from torch.nn import CrossEntropyLoss, MSELoss, BCEWithLogitsLoss
 import torch.nn.functional as F
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -45,7 +41,7 @@ sys.path.append(current_dir)
 
 from file_utils import cached_path
 
-CONFIG_NAME = 'bert_config.json'
+CONFIG_NAME = 'config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 logger = logging.getLogger(__name__)
 
@@ -590,6 +586,7 @@ class BertPreTrainedModel(nn.Module):
             *inputs, **kwargs: additional input for the specific Bert class
                 (ex: num_labels for BertForSequenceClassification)
         """
+        hidden_dropout_prob = kwargs.get('hidden_dropout_prob', 0.1)
         state_dict = kwargs.get('state_dict', None)
         kwargs.pop('state_dict', None)
         cache_dir = kwargs.get('cache_dir', None)
@@ -635,7 +632,9 @@ class BertPreTrainedModel(nn.Module):
             # Backward compatibility with old naming format
             config_file = os.path.join(serialization_dir, BERT_CONFIG_NAME)
         config = BertConfig.from_json_file(config_file)
+        config.hidden_dropout_prob = hidden_dropout_prob
         logger.info("Model config {}".format(config))
+        del kwargs["hidden_dropout_prob"]
         # Instantiate model.
         model = cls(config, *inputs, **kwargs)
         if state_dict is None and not from_tf:
@@ -708,7 +707,8 @@ class BertModel(BertPreTrainedModel):
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
+        # extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
+        extended_attention_mask = extended_attention_mask.to(dtype=torch.float32)
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
         embedding_output = self.embeddings(input_ids, token_type_ids)
@@ -720,7 +720,7 @@ class BertModel(BertPreTrainedModel):
         if output_attention_mask:
             return encoded_layers, attention_layers, pooled_output, extended_attention_mask
         if model_distillation:
-            return encoded_layers, attention_layers
+            return pooled_output, encoded_layers, attention_layers
         if not output_all_encoded_layers:
             encoded_layers = encoded_layers[-1]
         return encoded_layers, pooled_output
@@ -807,7 +807,7 @@ class BertForPreTraining(BertPreTrainedModel):
     Inputs:
         `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
             with the word token indices in the vocabulary(see the tokens preprocessing logic in the scripts
-            `extract_features.py`, `run_alue.py` and `run_squad.py`)
+            `extract_features.py`, `run_classifier_old.py` and `run_squad.py`)
         `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
             types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
             a `sentence B` token (see BERT paper for more details).
@@ -883,7 +883,7 @@ class BertForMaskedLM(BertPreTrainedModel):
     Inputs:
         `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
             with the word token indices in the vocabulary(see the tokens preprocessing logic in the scripts
-            `extract_features.py`, `run_alue.py` and `run_squad.py`)
+            `extract_features.py`, `run_classifier_old.py` and `run_squad.py`)
         `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
             types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
             a `sentence B` token (see BERT paper for more details).
@@ -957,7 +957,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
     Inputs:
         `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
             with the word token indices in the vocabulary(see the tokens preprocessing logic in the scripts
-            `extract_features.py`, `run_alue.py` and `run_squad.py`)
+            `extract_features.py`, `run_classifier_old.py` and `run_squad.py`)
         `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
             types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
             a `sentence B` token (see BERT paper for more details).
@@ -999,13 +999,14 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, num_labels)
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):    
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         outputs = self.bert(input_ids, token_type_ids, attention_mask,
-                                     output_all_encoded_layers=False)
-        pooled_output = outputs[1]
+                            model_distillation=True)  # output_all_encoded_layers=False
+
+        pooled_output = outputs[0]
         task_output = self.dropout(pooled_output)
         logits = self.classifier(task_output)
-        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
+        outputs = (logits,) + outputs[1:]  # add hidden states and attention if they are here
         if labels is not None:
             if self.num_labels == 1:
                 # We are doing regression
@@ -1015,7 +1016,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
                 loss_fct = CrossEntropyLoss()
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             outputs = (loss,) + outputs
-        return outputs # (loss), logits, (hidden_states), (attentions)
+        return outputs  # (loss), logits, (hidden_states), (attentions)
 
 
 class NeZhaForTokenClassification(BertPreTrainedModel):
@@ -1031,12 +1032,12 @@ class NeZhaForTokenClassification(BertPreTrainedModel):
         batch_size = sequence_tensor.size()[0]
         seq_length = sequence_tensor.size()[1]
         width = sequence_tensor.size()[2]
-        device = positions.device 
+        device = positions.device
 
-        flat_offsets = torch.reshape(torch.range(0, batch_size-1, dtype=torch.int32) * seq_length, [-1, 1]).to(device)
+        flat_offsets = torch.reshape(torch.range(0, batch_size - 1, dtype=torch.int32) * seq_length, [-1, 1]).to(device)
         flat_positions = torch.reshape(positions + flat_offsets, [-1])
         flat_sequence_tensor = torch.reshape(sequence_tensor, [batch_size * seq_length, width])
-        output_tensor = torch.index_select(flat_sequence_tensor, 0, flat_positions)    
+        output_tensor = torch.index_select(flat_sequence_tensor, 0, flat_positions)
         output_tensor = torch.reshape(output_tensor, [batch_size, seq_length, width])
 
         return output_tensor
@@ -1056,28 +1057,32 @@ class NeZhaForTokenClassification(BertPreTrainedModel):
         r'''
         Return:
         loss
-        pred (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length, self.num_labels)`): 
+        pred (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length, self.num_labels)`):
 
         '''
-        outputs = self.bert(input_ids, attention_mask, token_type_ids) 
+        outputs = self.bert(input_ids, attention_mask, token_type_ids)
         sequence_output = outputs[0]
-        output_seq = self.gather_indexes(sequence_output, positions)   
+        output_seq = self.gather_indexes(sequence_output, positions)
         logits = self.dense(output_seq)  ## : shape (batch_size, sequence_length, num_labels)
         # pred = F.softmax(logits,dim=-1)
         outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
+        if seq_len is None:
+            seq_len = torch.sum(attention_mask, dim=-1)
+
         if labels is not None:
             ## caclulate loss
             flat_logits = torch.reshape(logits, [-1, self.num_labels])
-            labels = labels.contiguous().view(-1)   ## : shape (batch_size*sequence_length, )
+            labels = labels.contiguous().view(-1)  ## : shape (batch_size*sequence_length, )
             # cls_weights = torch.tensor([self.tagger.cls_weights]).to(device)
-            tok_weights = torch.reshape(self.sequence_mask(seq_len, input_ids.shape[1]), [-1]) 
-            temp_loss = F.cross_entropy(flat_logits,labels,reduction='none')
-            
-            numerator = torch.sum(F.cross_entropy(flat_logits,labels,reduction='none')*tok_weights)
+            tok_weights = torch.reshape(self.sequence_mask(seq_len, input_ids.shape[1]), [-1])
+            # temp_loss = F.cross_entropy(flat_logits, labels, reduction='none')
+            # loss_fct = CrossEntropyLoss()
+            loss_fct = CrossEntropyLoss(reduction='none')
+            numerator = torch.sum(loss_fct(flat_logits, labels) * tok_weights)
             denominator = torch.sum(tok_weights) + 1e-5
             loss = numerator / denominator
 
-            outputs = (loss,) + outputs 
+            outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
 
@@ -1128,7 +1133,7 @@ class NeZhaForQuestionAnswering(BertPreTrainedModel):
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
-
+        stack_logits = torch.vstack([start_logits, end_logits])
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
             if len(start_positions.size()) > 1:
@@ -1144,9 +1149,9 @@ class NeZhaForQuestionAnswering(BertPreTrainedModel):
             start_loss = loss_fct(start_logits, start_positions)
             end_loss = loss_fct(end_logits, end_positions)
             total_loss = (start_loss + end_loss) / 2
-            return total_loss
+            return total_loss, stack_logits
         else:
-            return start_logits, end_logits
+            return stack_logits
 
 
 class BertForJointLSTM(BertPreTrainedModel):
@@ -1197,6 +1202,7 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
     Bert Model transformer with a multi-label sequence classification head on top
     (a linear layer with sigmoid activation on top of the pooled output).
     """
+
     def __init__(self, config, num_labels):
         super().__init__(config)
         self.num_labels = num_labels
@@ -1209,13 +1215,15 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(
-        self,
-        input_ids=None,
-        token_type_ids=None,
-        attention_mask=None,        
-        labels=None,
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            head_mask=None,
+            inputs_embeds=None,
+            labels=None,
     ):
-
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -1239,3 +1247,113 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
+
+
+class BertForTwoTowerClassification(BertPreTrainedModel):
+    def __init__(self, config, num_labels):
+        super(BertForTwoTowerClassification, self).__init__(config)
+        self.num_labels = num_labels
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, num_labels)
+        self.apply(self.init_bert_weights)
+
+    def score(self, Q, D, similarity_metric):
+        if similarity_metric == "dot_product":
+            score = torch.matmul(Q, D.transpose(-2, -1))
+            score = torch.diag(score)
+        elif similarity_metric == "cosine":
+            score = F.cosine_similarity(Q, D)
+        return score
+
+    def forward_once(self, input_ids, attention_mask, token_type_ids):
+        outputs = self.bert(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids,
+                            output_all_encoded_layers=False)
+        pooled_output = outputs[1]
+        # task_output = self.dropout(pooled_output)
+        # logits = self.classifier(task_output)
+        return pooled_output
+
+    def forward(self, input_ids_1, input_ids_2, attention_mask_1=None, attention_mask_2=None, token_type_ids_1=None,
+                token_type_ids_2=None, labels=None, similarity_metric="dot_product"):
+        pooled_output_1 = self.forward_once(input_ids_1, attention_mask_1, token_type_ids_1)
+        pooled_output_2 = self.forward_once(input_ids_2, attention_mask_2, token_type_ids_2)
+        # similarity
+        # 1. dot product
+        # 2. cosine
+        score = self.score(pooled_output_1, pooled_output_2, similarity_metric=similarity_metric)
+        loss_fct = BCEWithLogitsLoss()
+        loss = loss_fct(score, labels.type_as(score))
+        outputs = (loss,) + (score,)
+        return outputs
+
+
+class ColBERT(BertPreTrainedModel):
+    def __init__(self, config, mask_punctuation, dim=128):
+        super(ColBERT, self).__init__(config)
+        self.dim = dim
+        self.mask_punctuation = mask_punctuation
+        self.skiplist = {}
+
+        if self.mask_punctuation:
+            # TODO:
+            import string
+            from transformers import BertTokenizerFast
+            self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+            self.skiplist = {w: True
+                             for symbol in string.punctuation
+                             for w in [symbol, self.tokenizer.encode(symbol, add_special_tokens=False)[0]]}
+
+        self.bert = BertModel(config)
+        self.linear = nn.Linear(config.hidden_size, dim, bias=False)
+        self.apply(self.init_bert_weights)
+
+    def score(self, Q, D, similarity_metric='cosine'):
+        if similarity_metric == 'cosine':
+            similarity_matrix = Q @ D.permute(0, 2, 1)
+            ## set the value of cosine(t_q,[PAD]) to -100
+            mask = torch.ones(similarity_matrix.size(), device=similarity_matrix.device) * -100.0
+            masked_similarity_matrix = torch.where(similarity_matrix != 0, similarity_matrix, mask)
+
+            score = masked_similarity_matrix.max(2).values.sum(1)
+            return (score, masked_similarity_matrix)
+
+        # assert self.similarity_metric == 'l2'
+        # return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
+
+    def query(self, input_ids_1, attention_mask_1, token_type_ids_1):
+        Q = self.bert(input_ids_1, attention_mask=attention_mask_1, token_type_ids=token_type_ids_1)[0]
+        Q = self.linear(Q)
+
+        return torch.nn.functional.normalize(Q, p=2, dim=2)
+
+    def doc(self, input_ids_2, attention_mask_2, token_type_ids_2, keep_dims=True):
+        D = self.bert(input_ids_2, attention_mask=attention_mask_2, token_type_ids=token_type_ids_2)[0]
+        D = self.linear(D)
+
+        mask = torch.tensor(self.mask(input_ids_2), device=D.device).unsqueeze(2).float()
+        D = D * mask
+
+        D = torch.nn.functional.normalize(D, p=2, dim=2)
+
+        if not keep_dims:
+            D, mask = D.cpu().to(dtype=torch.float16), mask.cpu().bool().squeeze(-1)
+            D = [d[mask[idx]] for idx, d in enumerate(D)]
+
+        return D
+
+    def mask(self, input_ids):
+        ## mask the [PAD] token in the docs
+        mask = [[(x not in self.skiplist) and (x != 0) for x in d] for d in input_ids.cpu().tolist()]
+        return mask
+
+    def forward(self, input_ids_1, input_ids_2, attention_mask_1=None, attention_mask_2=None, token_type_ids_1=None,
+                token_type_ids_2=None, labels=None, similarity_metric="cosine", D=None):
+        Q = self.query(input_ids_1, attention_mask_1, token_type_ids_1)
+        if D is None:
+            D = self.doc(input_ids_2, attention_mask_2, token_type_ids_2)
+        score, similarity_matrix = self.score(Q, D, similarity_metric)
+        loss_fct = BCEWithLogitsLoss()
+        loss = loss_fct(score, labels.type_as(score))
+        outputs = (loss,) + (score, similarity_matrix)
+        return outputs  # loss, score, similarity_matrix

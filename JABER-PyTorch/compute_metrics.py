@@ -86,5 +86,13 @@ if _has_sklearn:
             return acc_and_f1(preds, labels)
         elif task_name == "xnli":
             return acc_and_f1(preds, labels, average="macro")       
+        # orca
+        elif task_name in ['sentiment', 'dialect-region', 'dialect-binary', 'dialect-country', 'topic', 'ans-claim', 'machine-generation',
+                           'age', 'gender', 'adult', 'dangerous', 'emotion', 'hate-speech', 'offensive', 'irony',
+                           'sarcasm', 'abusive', 'wsd', 'ans-stance', 'baly-stance', 'mq2q', 'xlni']:
+            return acc_and_f1(preds, labels, average="macro")
+        elif task_name in ['sts', 'emotion-reg']:
+            return pearson_and_spearman(preds, labels)
         else:
             raise KeyError(task_name)
+

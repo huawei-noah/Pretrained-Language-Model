@@ -133,15 +133,6 @@ the correct train/dev/test split of `MDD` task.
 * We also support all ORCA tasks.
     
 * Run this command to process ALUE or ORCA datasets:
-     1. [JABER](https://huggingface.co/huawei-noah/JABER) Arabic BERT-base model.
-    2. [AT5S](https://huggingface.co/huawei-noah/AT5S) Arabic T5-small model.
-    3. [AT5B](https://huggingface.co/huawei-noah/AT5B) Arabic T5-base model.
-    4. **(coming soon) Char-JABER** Arabic BERT-base model with Character level embeddings.
-    5. **(coming soon) SABER** Arabic BERT-large model.
-    6. [JABERv2](https://huggingface.co/huawei-noah/JABERv2) Arabic BERT-base model.
-    7. [JABERv2-6L](https://huggingface.co/huawei-noah/JABERv2-6L) Arabic BERT-base 6 layer model.
-    8. [AT5Sv2](https://huggingface.co/huawei-noah/AT5Sv2) Arabic T5-small model.
-    9. [AT5Bv2](https://huggingface.co/huawei-noah/AT5Bv2) Arabic T5-base model.
      
 ```
 export MODEL_NAME=JABER # JABERv2, JABERv2-6L, AT5S, AT5B, AT5Sv2, AT5Bv2
@@ -228,7 +219,7 @@ Please cite the following papers when using our code and model:
 @article{ghaddar2024importance,
   title={On the importance of Data Scale in Pretraining Arabic Language Models},
   author={Ghaddar, Abbas and Langlais, Philippe and Rezagholizadeh, Mehdi and Chen, Boxing},
-  journal={arXiv preprint arXiv:todo},
+  journal={arXiv preprint arXiv:2401.07760},
   year={2024}
 }
 ```

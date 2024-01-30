@@ -90,6 +90,7 @@ def _read_tsv(input_file, quotechar=None):
 
 
 def prepare_embedding_retrieval(glove_file, vocab_size=100000):
+    logger.info('Preparing GloVe embedding started')
     cnt = 0
     words = []
     embeddings = {}
@@ -118,6 +119,7 @@ def prepare_embedding_retrieval(glove_file, vocab_size=100000):
     # normalize each word vector
     d = (np.sum(emb_matrix ** 2, 1) ** 0.5)
     emb_norm = (emb_matrix.T / d).T
+    logger.info('Preparing GloVe embedding finished')
     return emb_norm, vocab, ids_to_tokens
 
 
@@ -219,7 +221,7 @@ class DataAugmentor(object):
         for (idx, word) in enumerate(tokens):
             if _is_valid(word) and word.lower() not in StopWordsList:
                 candidate_words[idx] = self._word_augment(sent, idx, word)
-        logger.info(candidate_words)
+        # logger.info(candidate_words)
         cnt = 0
         while cnt < self.N:
             new_sent = list(tokens)
@@ -272,7 +274,7 @@ class AugmentProcessor(object):
                         line[augment_id] = augment_sent
                         writer.writerow(line)
 
-                if (i+1) % 1000 == 0:
+                if (i+1) % 50 == 0:
                     logger.info("Having been processing {} examples".format(str(i+1)))
 
 

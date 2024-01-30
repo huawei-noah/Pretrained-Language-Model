@@ -25,6 +25,9 @@ import logging
 import os
 import random
 import math
+import time
+from datetime import timedelta
+
 import numpy as np
 import torch
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
@@ -38,10 +41,10 @@ from transformers import (BertConfig, BertForSequenceClassification, BertTokeniz
 
 from transformers import AdamW, WarmupLinearSchedule
 
-from transformers import glue_compute_metrics as compute_metrics
-from transformers import glue_output_modes as output_modes
-from transformers import glue_processors as processors
-from transformers import glue_convert_examples_to_features as convert_examples_to_features
+from transformers.data.metrics import multiemo_compute_metrics as compute_metrics
+from transformers.data.processors.multiemo import multiemo_convert_examples_to_features as convert_examples_to_features, \
+    MultiemoProcessor, multiemo_output_modes
+from utils import result_to_text_file, dictionary_to_json
 
 logger = logging.getLogger(__name__)
 CONFIG_NAME = "config.json"
@@ -106,7 +109,7 @@ def train(args, train_dataset, model, tokenizer, teacher_model=None):
     current_best = 0
     output_eval_file = os.path.join(args.output_dir, 'eval_results.txt')
 
-    for _ in train_iterator:
+    for epoch in train_iterator:
         epoch_iterator = tqdm(train_dataloader, desc="Iteration")
         for step, batch in enumerate(epoch_iterator):
             model.train()
@@ -146,24 +149,21 @@ def train(args, train_dataset, model, tokenizer, teacher_model=None):
                     model.apply(lambda m: setattr(m, 'width_mult', width_mult))
                     # stage 1: width-adaptive
                     if args.training_phase == 'dynabertw':
-                        if getattr(args, 'data_aug'):
-                            loss, student_logit, student_reps, _, _ = model(**inputs)
+                        loss, student_logit, student_reps, _, _ = model(**inputs)
 
-                            # distillation loss of logits
-                            if args.output_mode == "classification":
-                                logit_loss = soft_cross_entropy(student_logit, teacher_logit.detach())
-                            elif args.output_mode == "regression":
-                                logit_loss = 0
+                        # distillation loss of logits
+                        if args.output_mode == "classification":
+                            logit_loss = soft_cross_entropy(student_logit, teacher_logit.detach())
+                        elif args.output_mode == "regression":
+                            logit_loss = 0
 
-                            # distillation loss of hidden states
-                            rep_loss = 0
-                            for student_rep, teacher_rep in zip(student_reps, teacher_reps):
-                                tmp_loss = loss_mse(student_rep, teacher_rep.detach())
-                                rep_loss += tmp_loss
+                        # distillation loss of hidden states
+                        rep_loss = 0
+                        for student_rep, teacher_rep in zip(student_reps, teacher_reps):
+                            tmp_loss = loss_mse(student_rep, teacher_rep.detach())
+                            rep_loss += tmp_loss
 
-                            loss = args.width_lambda1 * logit_loss + args.width_lambda2 * rep_loss
-                        else:
-                            loss = model(**inputs)[0]
+                        loss = args.width_lambda1 * logit_loss + args.width_lambda2 * rep_loss
 
                     # stage 2: width- and depth- adaptive
                     elif args.training_phase == 'dynabert':
@@ -189,7 +189,6 @@ def train(args, train_dataset, model, tokenizer, teacher_model=None):
                     else:
                         loss = model(**inputs)[0]
 
-                    print(loss)
                     if args.n_gpu > 1:
                         loss = loss.mean()
                     if args.gradient_accumulation_steps > 1:
@@ -206,52 +205,49 @@ def train(args, train_dataset, model, tokenizer, teacher_model=None):
                 model.zero_grad()
                 global_step += 1
 
-                # evaluate
-                if global_step > 0 and args.logging_steps > 0 and global_step % args.logging_steps == 0:
-                    if args.evaluate_during_training:
-                        acc = []
-                        if args.task_name == "mnli":  # for both MNLI-m and MNLI-mm
-                            acc_both = []
-
-                        # collect performance of all sub-networks
-                        for depth_mult in sorted(args.depth_mult_list, reverse=True):
-                            model.apply(lambda m: setattr(m, 'depth_mult', depth_mult))
-                            for width_mult in sorted(args.width_mult_list, reverse=True):
-                                model.apply(lambda m: setattr(m, 'width_mult', width_mult))
-                                results = evaluate(args, model, tokenizer)
-
-                                logger.info("********** start evaluate results *********")
-                                logger.info("depth_mult: %s ", depth_mult)
-                                logger.info("width_mult: %s ", width_mult)
-                                logger.info("results: %s ", results)
-                                logger.info("********** end evaluate results *********")
-
-                                acc.append(list(results.values())[0])
-                                if args.task_name == "mnli":
-                                    acc_both.append(list(results.values())[0:2])
-
-                        # save model
-                        if sum(acc) > current_best:
-                            current_best = sum(acc)
-                            if args.task_name == "mnli":
-                                print("***best***{}\n".format(acc_both))
-                                with open(output_eval_file, "a") as writer:
-                                    writer.write("{}\n".format(acc_both))
-                            else:
-                                print("***best***{}\n".format(acc))
-                                with open(output_eval_file, "a") as writer:
-                                    writer.write("{}\n".format(acc))
-
-                            logger.info("Saving model checkpoint to %s", args.output_dir)
-                            model_to_save = model.module if hasattr(model, 'module') else model
-                            model_to_save.save_pretrained(args.output_dir)
-                            torch.save(args, os.path.join(args.output_dir, 'training_args.bin'))
-                            model_to_save.config.to_json_file(os.path.join(args.output_dir, CONFIG_NAME))
-                            tokenizer.save_vocabulary(args.output_dir)
-
             if 0 < t_total < global_step:
                 epoch_iterator.close()
                 break
+
+        # evaluate
+        if args.evaluate_during_training:
+            acc = []
+
+            # collect performance of all sub-networks
+            for depth_mult in sorted(args.depth_mult_list, reverse=True):
+                model.apply(lambda m: setattr(m, 'depth_mult', depth_mult))
+                for width_mult in sorted(args.width_mult_list, reverse=True):
+                    model.apply(lambda m: setattr(m, 'width_mult', width_mult))
+                    results = evaluate(args, model, tokenizer)
+
+                    logger.info("********** start evaluate results *********")
+                    logger.info("depth_mult: %s ", depth_mult)
+                    logger.info("width_mult: %s ", width_mult)
+                    logger.info("results: %s ", results)
+                    logger.info("********** end evaluate results *********")
+
+                    acc.append(list(results.values())[0])
+
+            result_to_save = dict()
+            result_to_save['epoch'] = epoch + 1
+            result_to_save['global_step'] = global_step
+            result_to_save['loss'] = loss
+            result_to_save['acc'] = acc
+
+            result_to_text_file(result_to_save, output_eval_file)
+
+            # save model
+            if sum(acc) > current_best:
+                current_best = sum(acc)
+
+                print("***best***{}\n".format(acc))
+
+                logger.info("Saving model checkpoint to %s", args.output_dir)
+                model_to_save = model.module if hasattr(model, 'module') else model
+                model_to_save.save_pretrained(args.output_dir)
+                torch.save(args, os.path.join(args.output_dir, 'training_args.bin'))
+                model_to_save.config.to_json_file(os.path.join(args.output_dir, CONFIG_NAME))
+                tokenizer.save_vocabulary(args.output_dir)
 
         if 0 < t_total < global_step:
             train_iterator.close()
@@ -262,68 +258,62 @@ def train(args, train_dataset, model, tokenizer, teacher_model=None):
 
 def evaluate(args, model, tokenizer, prefix=""):
     """ Evaluate the model """
-    eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
-    eval_outputs_dirs = (args.output_dir, args.output_dir + 'MM') if args.task_name == "mnli" else (args.output_dir,)
-
     results = {}
-    for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
-        eval_dataset = load_and_cache_examples(args, eval_task, tokenizer, evaluate=True)
 
-        if not os.path.exists(eval_output_dir):
-            os.makedirs(eval_output_dir)
+    eval_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=True)
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
 
-        args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
-        eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler,
-                                     batch_size=args.eval_batch_size)
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
+    eval_sampler = SequentialSampler(eval_dataset)
+    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler,
+                                 batch_size=args.eval_batch_size)
 
-        eval_loss = 0.0
-        nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
-            model.eval()
-            batch = tuple(t.to(args.device) for t in batch)
+    eval_loss = 0.0
+    nb_eval_steps = 0
+    preds = None
+    out_label_ids = None
+    for batch in tqdm(eval_dataloader, desc="Evaluating"):
+        model.eval()
+        batch = tuple(t.to(args.device) for t in batch)
 
-            with torch.no_grad():
-                inputs = {'input_ids': batch[0], 'attention_mask': batch[1], 'labels': batch[3]}
-                if args.model_type != 'distilbert':
-                    inputs['token_type_ids'] = batch[2] if args.model_type in ['bert'] else None
-                outputs = model(**inputs)
-                tmp_eval_loss, logits = outputs[:2]
+        with torch.no_grad():
+            inputs = {'input_ids': batch[0], 'attention_mask': batch[1], 'labels': batch[3]}
+            if args.model_type != 'distilbert':
+                inputs['token_type_ids'] = batch[2] if args.model_type in ['bert'] else None
+            outputs = model(**inputs)
+            tmp_eval_loss, logits = outputs[:2]
+            eval_loss += tmp_eval_loss.mean().item()
 
-                eval_loss += tmp_eval_loss.mean().item()
-            nb_eval_steps += 1
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                out_label_ids = inputs['labels'].detach().cpu().numpy()
-            else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(out_label_ids, inputs['labels'].detach().cpu().numpy(), axis=0)
-
-        if args.output_mode == "classification":
-            preds = np.argmax(preds, axis=1)
-        elif args.output_mode == "regression":
-            preds = np.squeeze(preds)
-        result = compute_metrics(eval_task, preds, out_label_ids)
-        if eval_task == 'mnli-mm':
-            results.update({'acc_mm': result['acc']})
+        nb_eval_steps += 1
+        if preds is None:
+            preds = logits.detach().cpu().numpy()
+            out_label_ids = inputs['labels'].detach().cpu().numpy()
         else:
-            results.update(result)
+            preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+            out_label_ids = np.append(out_label_ids, inputs['labels'].detach().cpu().numpy(), axis=0)
 
-        output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")  # wirte all the results to the same file
-        with open(output_eval_file, "a") as writer:
-            logger.info("***** Eval results {} *****".format(prefix))
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
-            writer.write("\n")
+    if args.output_mode == "regression":
+        preds = np.squeeze(preds)
+
+    result = compute_metrics(args.task_name, preds, out_label_ids)
+    results.update(result)
+
+    output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
+    with open(output_eval_file, "a") as writer:
+        logger.info("***** Eval results {} *****".format(prefix))
+        for key in sorted(result.keys()):
+            logger.info("  %s = %s", key, str(result[key]))
+            writer.write("%s = %s\n" % (key, str(result[key])))
+        writer.write("\n")
+
     return results
 
 
 def load_and_cache_examples(args, task, tokenizer, evaluate=False):
-    processor = processors[task]()
-    output_mode = output_modes[task]
+    _, lang, domain, kind = task.split('_')
+    processor = MultiemoProcessor(lang, domain, kind)
+    output_mode = multiemo_output_modes['multiemo']
     logger.info("Creating features from dataset file at %s", args.data_dir)
     label_list = processor.get_labels()
     if task in ['mnli', 'mnli-mm'] and args.model_type in ['roberta']:
@@ -332,15 +322,16 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     if not evaluate and args.data_aug:
         examples_aug = processor.get_train_examples_aug(args.data_dir)
         examples = examples + examples_aug
-    features = convert_examples_to_features(examples,
-                                            tokenizer,
-                                            label_list=label_list,
-                                            max_length=args.max_seq_length,
-                                            output_mode=output_mode,
-                                            pad_on_left=bool(args.model_type in ['xlnet']),  # pad on the left for xlnet
-                                            pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
-                                            pad_token_segment_id=4 if args.model_type in ['xlnet'] else 0,
-                                            )
+    features = convert_examples_to_features(
+        examples,
+        tokenizer,
+        label_list=label_list,
+        max_length=args.max_seq_length,
+        output_mode=output_mode,
+        pad_on_left=bool(args.model_type in ['xlnet']),  # pad on the left for xlnet
+        pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
+        pad_token_segment_id=4 if args.model_type in ['xlnet'] else 0,
+    )
 
     # Convert to Tensors and build dataset
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
@@ -388,36 +379,29 @@ def compute_neuron_head_importance(args, model, tokenizer):
 
     model.to(args.device)
 
-    eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
-    eval_outputs_dirs = (args.output_dir, args.output_dir + 'MM') if args.task_name == "mnli" else (args.output_dir,)
+    eval_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=True)
 
-    for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
-        eval_dataset = load_and_cache_examples(args, eval_task, tokenizer, evaluate=True)
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
+    eval_sampler = SequentialSampler(eval_dataset)
+    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
-        if not os.path.exists(eval_output_dir):
-            os.makedirs(eval_output_dir)
+    for batch in tqdm(eval_dataloader, desc="Evaluating for determining importance"):
+        batch = tuple(t.to(args.device) for t in batch)
+        input_ids, input_mask, _, label_ids = batch
+        segment_ids = batch[2] if args.model_type == 'bert' else None  # RoBERTa does't use segment_ids
 
-        args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
-        eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+        # calculate head importance
+        outputs = model(input_ids, token_type_ids=segment_ids, attention_mask=input_mask, labels=label_ids,
+                        head_mask=head_mask)
+        loss = outputs[0]
+        loss.backward()
+        head_importance += head_mask.grad.abs().detach()
 
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
-            batch = tuple(t.to(args.device) for t in batch)
-            input_ids, input_mask, _, label_ids = batch
-            segment_ids = batch[2] if args.model_type == 'bert' else None  # RoBERTa does't use segment_ids
-
-            # calculate head importance
-            outputs = model(input_ids, token_type_ids=segment_ids, attention_mask=input_mask, labels=label_ids,
-                            head_mask=head_mask)
-            loss = outputs[0]
-            loss.backward()
-            head_importance += head_mask.grad.abs().detach()
-
-            # calculate  neuron importance
-            for w1, b1, w2, current_importance in zip(intermediate_weight, intermediate_bias, output_weight,
-                                                      neuron_importance):
-                current_importance += ((w1 * w1.grad).sum(dim=1) + b1 * b1.grad).abs().detach()
-                current_importance += ((w2 * w2.grad).sum(dim=0)).abs().detach()
+        # calculate  neuron importance
+        for w1, b1, w2, current_importance in zip(intermediate_weight, intermediate_bias, output_weight,
+                                                  neuron_importance):
+            current_importance += ((w1 * w1.grad).sum(dim=1) + b1 * b1.grad).abs().detach()
+            current_importance += ((w2 * w2.grad).sum(dim=0)).abs().detach()
 
     return head_importance, neuron_importance
 
@@ -456,7 +440,7 @@ def main():
     parser.add_argument("--model_type", default=None, type=str, required=True,
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()))
     parser.add_argument("--task_name", default=None, type=str, required=True,
-                        help="The name of the task to train selected in the list: " + ", ".join(processors.keys()))
+                        help="The name of the multiemo task to train")
     parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
@@ -480,8 +464,6 @@ def main():
                         help="Total number of training epochs to perform.")
     parser.add_argument("--warmup_steps", default=0, type=int,
                         help="Linear warmup over warmup_steps.")
-    parser.add_argument('--logging_steps', type=int, default=50,
-                        help="Log every X updates steps.")
     parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
     parser.add_argument("--hidden_dropout_prob", default=0.1, type=float,
@@ -522,12 +504,13 @@ def main():
     # Set seed
     set_seed(args)
 
-    # Prepare GLUE task: provide num_labels here
+    # Prepare MULTIEMO task: provide num_labels here
     args.task_name = args.task_name.lower()
-    if args.task_name not in processors:
-        raise ValueError("Task not found: %s" % (args.task_name))
-    processor = processors[args.task_name]()
-    args.output_mode = output_modes[args.task_name]
+    if 'multiemo' not in args.task_name:
+        raise ValueError("Task not found: %s" % args.task_name)
+    _, lang, domain, kind = args.task_name.split('_')
+    processor = MultiemoProcessor(lang, domain, kind)
+    args.output_mode = multiemo_output_modes['multiemo']
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
@@ -562,6 +545,8 @@ def main():
 
     # Training
     if args.do_train:
+        training_start_time = time.monotonic()
+
         train_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
         if teacher_model:
             global_step, tr_loss = train(args, train_dataset, model, tokenizer, teacher_model)
@@ -569,6 +554,20 @@ def main():
             global_step, tr_loss = train(args, train_dataset, model, tokenizer)
 
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
+
+        # Measure End Time
+        training_end_time = time.monotonic()
+
+        diff = timedelta(seconds=training_end_time - training_start_time)
+        diff_seconds = diff.total_seconds()
+
+        training_parameters = vars(args)
+        training_parameters['training_time'] = diff_seconds
+
+        output_training_params_file = os.path.join(args.output_dir, "training_params.json")
+
+        training_parameters.pop('device')
+        dictionary_to_json(training_parameters, output_training_params_file)
 
 
 if __name__ == "__main__":

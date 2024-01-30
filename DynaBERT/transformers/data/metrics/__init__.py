@@ -18,11 +18,14 @@ import csv
 import sys
 import logging
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 try:
     from scipy.stats import pearsonr, spearmanr
-    from sklearn.metrics import matthews_corrcoef, f1_score
+    from sklearn.metrics import matthews_corrcoef, f1_score, accuracy_score
+
     _has_sklearn = True
 except (AttributeError, ImportError) as e:
     logger.warning("To use data.metrics please install scikit-learn. See https://scikit-learn.org/stable/index.html")
@@ -40,6 +43,16 @@ if _has_sklearn:
     def acc_and_f1(preds, labels):
         acc = simple_accuracy(preds, labels)
         f1 = f1_score(y_true=labels, y_pred=preds)
+        return {
+            "acc": acc,
+            "f1": f1,
+            "acc_and_f1": (acc + f1) / 2,
+        }
+
+
+    def multiclass_acc_and_f1(preds, labels):
+        acc = accuracy_score(y_true=labels, y_pred=preds)
+        f1 = f1_score(y_true=labels, y_pred=preds, average='macro')
         return {
             "acc": acc,
             "f1": f1,
@@ -79,5 +92,14 @@ if _has_sklearn:
             return {"acc": simple_accuracy(preds, labels)}
         elif task_name == "wnli":
             return {"acc": simple_accuracy(preds, labels)}
+        else:
+            raise KeyError(task_name)
+
+
+    def multiemo_compute_metrics(task_name, logits, labels):
+        preds = np.argmax(logits, axis=1)
+        assert len(preds) == len(labels)
+        if 'multiemo' in task_name:
+            return multiclass_acc_and_f1(preds, labels)
         else:
             raise KeyError(task_name)
